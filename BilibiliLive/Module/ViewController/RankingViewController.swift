@@ -13,6 +13,31 @@ struct RankCategoryInfo {
     let rid: Int
     var isSeason = false
 
+    /// 侧边栏图标（SF Symbol）
+    var systemImage: String {
+        switch title {
+        case "全站": return "square.grid.2x2"
+        case "动画": return "sparkles"
+        case "番剧": return "tv"
+        case "国创": return "flag"
+        case "音乐": return "music.note"
+        case "舞蹈": return "figure.dance"
+        case "游戏": return "gamecontroller"
+        case "知识": return "book"
+        case "科技": return "cpu"
+        case "运动": return "figure.run"
+        case "汽车": return "car"
+        case "生活": return "house"
+        case "美食": return "fork.knife"
+        case "动物": return "pawprint"
+        case "鬼畜": return "repeat"
+        case "时尚": return "tshirt"
+        case "娱乐": return "theatermasks"
+        case "影视": return "film"
+        default: return "circle"
+        }
+    }
+
     static let all = [RankCategoryInfo(title: "全站", rid: 0),
                       RankCategoryInfo(title: "动画", rid: 1005),
                       RankCategoryInfo(title: "番剧", rid: 1, isSeason: true),
@@ -35,6 +60,7 @@ struct RankCategoryInfo {
 
 class RankingViewController: CategoryViewController {
     override func viewDidLoad() {
+        // 侧栏只用文字，去掉图标
         categories = RankCategoryInfo.all
             .map {
                 if $0.isSeason {
@@ -92,6 +118,8 @@ class RankingSeasonContentViewController: StandardVideoCollectionViewController<
 
     override func setupCollectionView() {
         collectionVC.styleOverride = .sideBar
+        // 番剧 / 国创的卡片只有标题 + 「更新至第 N 话」，不预留播放量 / 日期那一行
+        collectionVC.cardShowsMetaLine = false
         super.setupCollectionView()
     }
 

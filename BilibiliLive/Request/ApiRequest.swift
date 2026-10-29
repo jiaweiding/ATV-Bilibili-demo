@@ -271,11 +271,21 @@ enum ApiRequest {
             let cover_left_text_2: String?
             let cover_left_text_3: String?
             let cover_right_text: String?
+            let mask: Mask?
 
             enum CodingKeys: String, CodingKey {
-                case can_play, title, param, args, idx, cover, goto, top_rcmd_reason, bottom_rcmd_reason, desc, player_args
+                case can_play, title, param, args, idx, cover, goto, top_rcmd_reason, bottom_rcmd_reason, desc, player_args, mask
                 case cover_left_text_1, cover_left_text_2, cover_left_text_3, cover_right_text
                 case avatar_info = "avatar"
+            }
+
+            struct Mask: Codable, Hashable {
+                struct Button: Codable, Hashable {
+                    // 关注按钮的选中态：1 = 已关注
+                    let selected: Int?
+                }
+
+                let button: Button?
             }
 
             var ownerName: String {
@@ -286,15 +296,25 @@ enum ApiRequest {
                 return URL(string: cover)
             }
 
+            var isFollowed: Bool {
+                if mask?.button?.selected == 1 {
+                    return true
+                }
+                return top_rcmd_reason == "已关注" || bottom_rcmd_reason == "已关注"
+            }
+
             var date: String? {
+                if let desc, desc.contains("·"),
+                   let date = desc.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces),
+                   !date.isEmpty
+                {
+                    return date
+                }
                 if let top_rcmd_reason {
                     return top_rcmd_reason
                 }
                 if let bottom_rcmd_reason {
                     return bottom_rcmd_reason
-                }
-                if let desc, desc.contains("·") {
-                    return desc.components(separatedBy: "·").last?.trimmingCharacters(in: .whitespaces)
                 }
                 return nil
             }

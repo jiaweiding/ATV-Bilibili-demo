@@ -118,8 +118,25 @@ class UpCell: BLMotionCollectionViewCell {
     let nameLabel = MarqueeLabel()
     let despLabel = UILabel()
 
+    /// Liquid Glass 底（tvOS 26+），低版本回退毛玻璃
+    private let effectView = UIVisualEffectView.makeGlassView(cornerRadius: BLCornerRadius.normal)
+    /// 聚焦时盖在玻璃上的白色高光，和详情页按钮、侧栏白胶囊同一套焦点语言
+    private let focusOverlayView = UIView()
+
     override func setup() {
         super.setup()
+
+        contentView.addSubview(effectView)
+        effectView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+        focusOverlayView.backgroundColor = UIColor.white.withAlphaComponent(0.95)
+        focusOverlayView.alpha = 0
+        effectView.contentView.addSubview(focusOverlayView)
+        focusOverlayView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+
         contentView.addSubview(imageView)
         contentView.addSubview(nameLabel)
         contentView.addSubview(despLabel)
@@ -144,16 +161,17 @@ class UpCell: BLMotionCollectionViewCell {
             make.trailing.equalTo(nameLabel.snp.trailing).offset(-20)
         }
 
-        nameLabel.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
+        nameLabel.font = .App.rowTitle
         nameLabel.fadeLength = 60
-        despLabel.font = UIFont.systemFont(ofSize: 20, weight: .regular)
-        despLabel.textColor = UIColor(named: "titleColor")
-        contentView.backgroundColor = UIColor(named: "bgColor")
-        contentView.layer.cornerRadius = 16
+        despLabel.font = .App.meta
+        updateColors()
     }
 
     override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
         super.didUpdateFocus(in: context, with: coordinator)
+        coordinator.addCoordinatedAnimations {
+            self.updateColors()
+        }
         if isFocused {
             startScroll()
         } else {
@@ -161,9 +179,18 @@ class UpCell: BLMotionCollectionViewCell {
         }
     }
 
+    /// 聚焦后玻璃变白底，名字和签名都要转黑才看得清
+    private func updateColors() {
+        focusOverlayView.alpha = isFocused ? 1 : 0
+        let color: UIColor = isFocused ? .black : (UIColor(named: "titleColor") ?? .white)
+        nameLabel.textColor = color
+        despLabel.textColor = color
+    }
+
     private func startScroll() {
-        nameLabel.restartLabel()
+        // 同上：先放开 holdScrolling，restartLabel 才会真的开始滚
         nameLabel.holdScrolling = false
+        nameLabel.restartLabel()
     }
 
     private func stopScroll() {

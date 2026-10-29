@@ -197,7 +197,7 @@ class ToViewHeaderSupplementaryView: UICollectionReusableView {
         super.init(frame: frame)
         addSubview(clearWatchedButton)
         clearWatchedButton.title = "清除已看完"
-        clearWatchedButton.titleFont = .systemFont(ofSize: 26, weight: .medium)
+        clearWatchedButton.titleFont = .App.button
         clearWatchedButton.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(30)
             make.top.equalToSuperview().offset(10)

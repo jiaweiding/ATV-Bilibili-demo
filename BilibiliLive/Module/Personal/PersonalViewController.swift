@@ -14,6 +14,8 @@ import UIKit
 class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
     struct CellModel {
         let title: String
+        /// SF Symbol 名称，留空则只显示文字
+        var icon: String? = nil
         var autoSelect: Bool? = true
         var contentVC: UIViewController? = nil
         var action: (() -> Void)? = nil
@@ -51,7 +53,7 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
 
     private let usernameLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.preferredFont(forTextStyle: .headline)
+        label.font = .App.rowTitle
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
         return label
@@ -59,17 +61,22 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
 
     private let leftCollectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
-        layout.minimumLineSpacing = 16
+        layout.minimumLineSpacing = 10
         layout.minimumInteritemSpacing = 4
-        layout.itemSize = CGSize(width: 460, height: 60)
-        layout.sectionInset = UIEdgeInsets(top: 0, left: 20, bottom: 0, right: 0)
+        layout.itemSize = CGSize(width: 268, height: BLSettingLineCollectionViewCell.rowHeight)
+        layout.sectionInset = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
+        // 侧栏在玻璃面板内，不再叠加系统安全区内边距
+        collectionView.contentInsetAdjustmentBehavior = .never
         collectionView.backgroundColor = .clear
         return collectionView
     }()
 
     weak var currentViewController: UIViewController?
+
+    /// 焦点是否停在侧栏里，决定白色胶囊跟焦点还是跟选中项
+    private var sidebarFocusActive = false
 
     var cellModels = [CellModel]()
     override func viewDidLoad() {
@@ -77,7 +84,7 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
         setupUI()
         setupData()
         leftCollectionView.reloadData()
-        avatarImageView.layer.cornerRadius = 50
+        avatarImageView.layer.cornerRadius = 27.5
         leftCollectionView.register(BLSettingLineCollectionViewCell.self, forCellWithReuseIdentifier: "cell")
         leftCollectionView.selectItem(at: IndexPath(row: 0, section: 0), animated: false, scrollPosition: .top)
         collectionView(leftCollectionView, didSelectItemAt: IndexPath(row: 0, section: 0))
@@ -100,6 +107,7 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
     func setupData() {
         cellModels.removeAll()
 
+        // 侧栏只用文字，去掉图标
         let setting = CellModel(title: "设置", contentVC: SettingsViewController())
         cellModels.append(setting)
         cellModels.append(CellModel(title: "账号切换", autoSelect: false, action: { [weak self] in
@@ -205,11 +213,14 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
         leftCollectionView.delegate = self
         leftCollectionView.dataSource = self
 
+        leftContainerView.setGlassEffectView(cornerRadius: BLCornerRadius.lessBig)
+        leftContainerView.layer.cornerRadius = BLCornerRadius.lessBig
+        leftContainerView.clipsToBounds = true
         leftContainerView.snp.makeConstraints { make in
-            make.leading.equalToSuperview()
-            make.top.equalTo(view.safeAreaLayoutGuide.snp.top)
-            make.bottom.equalToSuperview()
-            make.width.equalTo(500)
+            make.leading.equalToSuperview().offset(40)
+            make.top.equalTo(view.safeAreaLayoutGuide.snp.top).offset(20)
+            make.bottom.equalToSuperview().offset(-40)
+            make.width.equalTo(300)
         }
 
         contentView.snp.makeConstraints { make in
@@ -225,8 +236,8 @@ class PersonalViewController: UIViewController, BLTabBarContentVCProtocol {
 
         avatarImageView.snp.makeConstraints { make in
             make.leading.equalToSuperview().offset(20)
-            make.top.bottom.equalToSuperview()
-            make.width.equalTo(avatarImageView.snp.height)
+            make.centerY.equalToSuperview()
+            make.width.height.equalTo(55)
         }
 
         usernameLabel.snp.makeConstraints { make in
@@ -246,6 +257,8 @@ extension PersonalViewController: UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "cell", for: indexPath) as! BLSettingLineCollectionViewCell
         cell.titleLabel.text = cellModels[indexPath.item].title
+        cell.icon = cellModels[indexPath.item].icon
+        cell.isSidebarFocusActive = sidebarFocusActive
         return cell
     }
 
@@ -264,6 +277,14 @@ extension PersonalViewController: UICollectionViewDelegate {
     }
 
     func collectionView(_ collectionView: UICollectionView, didUpdateFocusIn context: UICollectionViewFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
+        // 焦点进侧栏：白色胶囊跟焦点；焦点离开：胶囊回到当前选中项
+        let sidebarFocused = context.nextFocusedIndexPath != nil
+        if sidebarFocusActive != sidebarFocused {
+            sidebarFocusActive = sidebarFocused
+            coordinator.addCoordinatedAnimations {
+                collectionView.blSetSidebarFocusActive(sidebarFocused)
+            }
+        }
         if Settings.sideMenuAutoSelectChange == false {
             return
         }
@@ -271,12 +292,10 @@ extension PersonalViewController: UICollectionViewDelegate {
         guard let nextFocusedIndexPath = context.nextFocusedIndexPath else {
             return
         }
-        let model = cellModels[nextFocusedIndexPath.item]
-        if model.autoSelect == false {
-            // 不自动选中
-            return
-        }
+        // 白色胶囊始终跟随焦点，保证同一时刻只有一个高亮行
         collectionView.selectItem(at: nextFocusedIndexPath, animated: true, scrollPosition: .centeredHorizontally)
+        let model = cellModels[nextFocusedIndexPath.item]
+        guard model.autoSelect != false else { return }
         if let vc = model.contentVC {
             setViewController(vc: vc)
         }

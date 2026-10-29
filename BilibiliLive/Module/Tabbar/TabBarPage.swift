@@ -35,7 +35,7 @@ enum TabBarPage: String, CaseIterable, Codable {
         case .ranking:
             return "排行榜"
         case .follows:
-            return "关注"
+            return "动态"
         case .favorite:
             return "收藏"
         case .personal:
@@ -52,6 +52,27 @@ enum TabBarPage: String, CaseIterable, Codable {
             return "历史记录"
         case .weeklyWatch:
             return "每周必看"
+        }
+    }
+
+    /// 侧边栏图标（SF Symbol）
+    var systemImage: String {
+        switch self {
+        case .live: return "dot.radiowaves.left.and.right"
+        case .feed: return "house"
+        case .tvRecommend: return "sparkles.tv"
+        case .hot: return "flame"
+        case .ranking: return "chart.bar"
+        // 动态是「关注的 UP 有新投稿」，用心形会和收藏的星形撞概念，改用闪电
+        case .follows: return "bolt.fill"
+        case .favorite: return "star"
+        case .personal: return "person"
+        case .search: return "magnifyingglass"
+        case .followBangumi: return "play.tv"
+        case .followUps: return "person.2"
+        case .toView: return "clock.badge.checkmark"
+        case .history: return "clock"
+        case .weeklyWatch: return "calendar"
         }
     }
 

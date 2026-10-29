@@ -4,16 +4,18 @@
 
 import Alamofire
 import Kingfisher
+import SnapKit
 import UIKit
 
+/// 点评论进来的二级页：上面是被回复的那条评论（完整展示），下面是它的回复列表
 class ReplyDetailViewController: UIViewController {
-    private var scrollView: UIScrollView!
-    private var contentView: UIView!
-    private var titleLabel: UILabel!
-    private var replyLabel: UIButton!
-    private var replyCollectionView: UICollectionView!
-    private var imageStackView: UIStackView!
-    private var buttonStackView: UIStackView!
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
+    private let titleLabel = UILabel()
+    private let mainReplyView = ReplyRowView()
+    private let repliesSectionView = UIStackView()
+    private let repliesTitleLabel = UILabel()
+    private let repliesStackView = UIStackView()
 
     private let reply: Replys.Reply
 
@@ -27,179 +29,137 @@ class ReplyDetailViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override var preferredFocusEnvironments: [UIFocusEnvironment] {
+        // 主评论只做展示，进来先把焦点交给第一条回复
+        guard let firstReply = repliesStackView.arrangedSubviews.first else { return [scrollView] }
+        return [firstReply]
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
-
         setUpViews()
-        replyLabel.setTitle(reply.content.message, for: .normal)
-        replyLabel.setTitleColor(UIColor.label, for: .normal)
-        if let attr = reply.createAttributedString(displayView: replyLabel) {
-            replyLabel.setAttributedTitle(attr, for: .normal)
+        configMainReply()
+        configReplies()
+    }
+
+    // MARK: - Private
+
+    private func setUpViews() {
+        view.backgroundColor = .black
+
+        view.addSubview(scrollView)
+        scrollView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
         }
 
-        reply.content.pictures?.compactMap { URL(string: $0.img_src) }.forEach { url in
-            let imageView = UIImageView()
-            imageView.kf.setImage(with: url)
-            imageView.contentMode = .scaleAspectFit
-            imageView.snp.makeConstraints { make in
-                make.height.lessThanOrEqualTo(500)
+        scrollView.addSubview(contentView)
+        contentView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+            make.width.equalToSuperview()
+        }
+
+        titleLabel.font = .App.pageTitle
+        titleLabel.text = "评论"
+        contentView.addSubview(titleLabel)
+        titleLabel.snp.makeConstraints { make in
+            make.centerX.equalToSuperview()
+            make.top.equalToSuperview().offset(20)
+        }
+
+        contentView.addSubview(mainReplyView)
+        mainReplyView.snp.makeConstraints { make in
+            make.top.equalTo(titleLabel.snp.bottom).offset(60)
+            make.leading.equalTo(contentView.snp.leadingMargin)
+            make.trailing.equalTo(contentView.snp.trailingMargin)
+        }
+
+        repliesTitleLabel.font = .App.sectionTitle
+        repliesTitleLabel.textColor = UIColor(named: "upTitleColor")
+
+        repliesStackView.axis = .vertical
+        repliesStackView.spacing = 24
+
+        repliesSectionView.axis = .vertical
+        repliesSectionView.spacing = 30
+        repliesSectionView.addArrangedSubview(repliesTitleLabel)
+        repliesSectionView.addArrangedSubview(repliesStackView)
+        contentView.addSubview(repliesSectionView)
+        repliesSectionView.snp.makeConstraints { make in
+            make.top.equalTo(mainReplyView.snp.bottom).offset(60)
+            make.leading.equalTo(contentView.snp.leadingMargin)
+            make.trailing.equalTo(contentView.snp.trailingMargin)
+            make.bottom.equalToSuperview().offset(-80)
+        }
+    }
+
+    /// 被回复的那条评论：正文完整展示、不接受焦点，配图和跳转按钮都挂在卡片里
+    private func configMainReply() {
+        mainReplyView.config(reply: reply)
+        mainReplyView.contentNumberOfLines = 0
+        mainReplyView.isFocusable = false
+
+        if let pictures = reply.content.pictures, !pictures.isEmpty {
+            let imageStackView = UIStackView()
+            imageStackView.axis = .horizontal
+            imageStackView.distribution = .fillEqually
+            imageStackView.spacing = 20
+            for picture in pictures {
+                guard let url = URL(string: picture.img_src) else { continue }
+                let imageView = UIImageView()
+                imageView.kf.setImage(with: url)
+                imageView.contentMode = .scaleAspectFit
+                imageView.snp.makeConstraints { make in
+                    make.height.lessThanOrEqualTo(500)
+                }
+                imageStackView.addArrangedSubview(imageView)
             }
-            imageStackView.addArrangedSubview(imageView)
+            mainReplyView.addAccessory(imageStackView)
         }
 
-        reply.content.jump_url?.forEach { url, jump in
-            Task {
+        guard let jumpUrls = reply.content.jump_url, !jumpUrls.isEmpty else { return }
+        let buttonStackView = UIStackView()
+        buttonStackView.axis = .horizontal
+        buttonStackView.spacing = 20
+        // 按钮保持自身宽度，尾部留一个空视图吃掉富余宽度，否则会被拉开
+        buttonStackView.setContentHuggingPriority(.required, for: .horizontal)
+        let buttonRow = UIStackView(arrangedSubviews: [buttonStackView, UIView()])
+        buttonRow.axis = .horizontal
+
+        for (url, jump) in jumpUrls {
+            Task { [weak self] in
                 guard let bvId = await ReplyUrlBVParser.parser(url: url) else { return }
                 let button = BLCustomTextButton()
                 button.title = jump.title
                 button.onPrimaryAction = { [weak self] _ in
                     self?.jumpLink(bvid: bvId)
                 }
+                if buttonStackView.arrangedSubviews.isEmpty {
+                    self?.mainReplyView.addAccessory(buttonRow)
+                }
                 buttonStackView.addArrangedSubview(button)
             }
         }
     }
 
-    // MARK: - Private
+    private func configReplies() {
+        let replies = reply.replies ?? []
+        repliesTitleLabel.text = "共 \(replies.count) 条回复"
+        repliesSectionView.isHidden = replies.isEmpty
+
+        for subReply in replies {
+            let row = ReplyRowView()
+            row.config(reply: subReply)
+            row.onPrimaryAction = { [weak self] _ in
+                self?.present(ReplyDetailViewController(reply: subReply), animated: true)
+            }
+            repliesStackView.addArrangedSubview(row)
+        }
+    }
 
     private func jumpLink(bvid: String) {
         let aid = BvidConvertor.bv2av(bvid: bvid)
         let detailVC = VideoDetailViewController.create(aid: Int(aid), cid: nil)
         detailVC.present(from: self)
-    }
-
-    private func setUpViews() {
-        scrollView = {
-            let scroll = UIScrollView()
-            view.addSubview(scroll)
-            scroll.snp.makeConstraints { make in
-                make.edges.equalToSuperview()
-            }
-            return scroll
-        }()
-
-        contentView = {
-            let view = UIView()
-            scrollView.addSubview(view)
-            view.snp.makeConstraints { make in
-                make.edges.equalToSuperview()
-                make.width.equalToSuperview()
-            }
-            return view
-        }()
-
-        titleLabel = {
-            let label = UILabel()
-            contentView.addSubview(label)
-            label.font = .boldSystemFont(ofSize: 60)
-            label.text = "评论"
-
-            label.snp.makeConstraints { make in
-                make.centerX.equalToSuperview()
-                make.top.equalToSuperview().offset(20)
-            }
-
-            return label
-        }()
-
-        replyLabel = {
-            let label = UIButton()
-            contentView.addSubview(label)
-            label.titleLabel?.numberOfLines = 0
-            label.titleLabel?.textAlignment = .left
-            label.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-            label.contentHorizontalAlignment = .left
-            label.setContentCompressionResistancePriority(.required, for: .vertical)
-            label.snp.makeConstraints { make in
-                make.top.equalTo(self.titleLabel.snp.bottom).offset(60)
-                make.leading.equalTo(contentView.snp.leadingMargin)
-                make.trailing.equalTo(contentView.snp.trailingMargin)
-            }
-            label.titleLabel?.snp.makeConstraints { make in
-                make.top.bottom.equalToSuperview()
-            }
-
-            return label
-        }()
-
-        imageStackView = {
-            let stackView = UIStackView()
-            stackView.axis = .horizontal
-            stackView.distribution = .fillEqually
-            stackView.spacing = 10
-            contentView.addSubview(stackView)
-
-            stackView.snp.makeConstraints { make in
-                make.top.equalTo(self.replyLabel.snp.bottom).offset(60)
-                make.leading.equalTo(contentView.snp.leadingMargin)
-                make.trailing.equalTo(contentView.snp.trailingMargin)
-            }
-            return stackView
-        }()
-
-        buttonStackView = {
-            let stackView = UIStackView()
-            stackView.axis = .horizontal
-            stackView.alignment = .leading
-            stackView.spacing = 10
-            stackView.distribution = .equalSpacing
-            contentView.addSubview(stackView)
-            stackView.snp.makeConstraints { make in
-                make.top.equalTo(self.imageStackView.snp.bottom).offset(60)
-                make.leading.equalTo(contentView.snp.leadingMargin)
-                make.trailing.lessThanOrEqualTo(contentView.snp.trailingMargin)
-            }
-            return stackView
-        }()
-
-        replyCollectionView = {
-            let flowLayout = UICollectionViewFlowLayout()
-            flowLayout.itemSize = CGSize(width: 582, height: 360)
-            flowLayout.sectionInset = .init(top: 0, left: 60, bottom: 0, right: 60)
-            flowLayout.minimumLineSpacing = 10
-            flowLayout.minimumInteritemSpacing = 10
-
-            let collectionView = UICollectionView(frame: .zero, collectionViewLayout: flowLayout)
-            contentView.addSubview(collectionView)
-            collectionView.dataSource = self
-            collectionView.delegate = self
-            collectionView.register(UINib(nibName: ReplyCell.identifier, bundle: nil), forCellWithReuseIdentifier: ReplyCell.identifier)
-
-            collectionView.snp.makeConstraints { make in
-                make.leading.trailing.equalToSuperview()
-                make.top.equalTo(self.buttonStackView.snp.bottom).offset(60)
-                make.height.width.equalTo(360)
-                make.bottom.equalToSuperview()
-            }
-
-            return collectionView
-        }()
-    }
-}
-
-extension ReplyDetailViewController: UICollectionViewDataSource, UICollectionViewDelegate {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return reply.replies?.count ?? 0
-    }
-
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ReplyCell.identifier, for: indexPath) as? ReplyCell else {
-            fatalError("cell not found")
-        }
-
-        guard let reply = reply.replies?[indexPath.row] else {
-            fatalError("reply not found")
-        }
-
-        cell.config(replay: reply)
-
-        return cell
-    }
-
-    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        guard let reply = reply.replies?[indexPath.item] else { return }
-        let detail = ReplyDetailViewController(reply: reply)
-        present(detail, animated: true)
     }
 }
 

@@ -54,7 +54,7 @@ class BLOverlayView: UIView {
     private let badgeLabel: UILabel = {
         let label = UILabel()
         label.textColor = .white
-        label.font = .systemFont(ofSize: 20, weight: .semibold)
+        label.font = .App.badge
         label.textAlignment = .center
         return label
     }()
@@ -175,7 +175,7 @@ class BLOverlayView: UIView {
 
         let label = UILabel()
         label.textColor = .white
-        label.font = .systemFont(ofSize: fontSize)
+        label.font = .App.badge
         label.text = text
 
         container.addSubview(label)

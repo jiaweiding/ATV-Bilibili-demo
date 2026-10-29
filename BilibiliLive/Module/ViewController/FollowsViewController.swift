@@ -137,7 +137,7 @@ final class FollowsFeedFlowViewController: FeedFlowBrowserViewController {
 }
 
 final class FollowsFeedFlowDataSource: FeedFlowDataSource {
-    let title = "关注"
+    let title = "动态"
     let defaultPreviewHintText = "停留后自动预览，按确认键进入视频流"
     let loadingHintText = "正在加载关注视频..."
     let emptyStateText = "当前关注区暂无可播放视频"

@@ -1,0 +1,46 @@
+name: Feature build
+
+on:
+  push:
+    branches:
+      - "feature/**"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build unsigned ipa
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: Build
+        run: fastlane build_unsign_ipa
+
+      - name: Rename ipa
+        run: mv BilbiliAtvDemo.ipa BilbiliAtvDemo-unsigned.ipa
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BilbiliAtvDemo-unsigned
+          path: BilbiliAtvDemo-unsigned.ipa
+
+      # 每个 feature 分支一个 nightly-<branch> 的预发布，覆盖更新
+      - name: Publish nightly release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SAFE_BRANCH="${GITHUB_REF_NAME//\//-}"
+          TAG="nightly-${SAFE_BRANCH}"
+          gh release view "$TAG" >/dev/null 2>&1 && gh release delete "$TAG" -y --cleanup-tag || true
+          gh release create "$TAG" BilbiliAtvDemo-unsigned.ipa \
+            -t "Nightly · ${GITHUB_REF_NAME}" \
+            -n "Built from ${GITHUB_SHA}" \
+            -p

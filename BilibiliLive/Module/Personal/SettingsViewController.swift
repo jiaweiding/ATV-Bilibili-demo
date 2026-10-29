@@ -30,6 +30,8 @@ class SettingsViewController: UIViewController {
     class CellModel: Hashable, Equatable {
         let title: String
         let desp: () -> String
+        /// 右侧显示箭头（进入下一级页面的行）
+        let showsChevron: Bool
         let action: ((@escaping () -> Void) -> Void)?
 
         var updateAction: (() -> Void)?
@@ -42,26 +44,27 @@ class SettingsViewController: UIViewController {
             lhs.title == rhs.title
         }
 
-        init(title: String, desp: @autoclosure @escaping () -> String, action: ((@escaping () -> Void) -> Void)?) {
+        init(title: String, desp: @autoclosure @escaping () -> String, showsChevron: Bool = false, action: ((@escaping () -> Void) -> Void)?) {
             self.title = title
             self.desp = desp
+            self.showsChevron = showsChevron
             self.action = action
         }
     }
 
     let collectionView: UICollectionView = {
         let layout = UICollectionViewCompositionalLayout { sectionIndex, environment -> NSCollectionLayoutSection? in
-            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(68))
+            let itemSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(SettingsSwitchCell.rowHeight))
             let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
-            let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(68))
+            let groupSize = NSCollectionLayoutSize(widthDimension: .fractionalWidth(1.0), heightDimension: .absolute(SettingsSwitchCell.rowHeight))
             let group = NSCollectionLayoutGroup.vertical(layoutSize: groupSize, subitems: [item])
-            group.interItemSpacing = .fixed(10)
+            group.interItemSpacing = .fixed(6)
 
             let section = NSCollectionLayoutSection(group: group)
             let headerSize = NSCollectionLayoutSize(
                 widthDimension: .fractionalWidth(1),
-                heightDimension: .estimated(44)
+                heightDimension: .estimated(117)
             )
 
             let header = NSCollectionLayoutBoundarySupplementaryItem(
@@ -71,7 +74,8 @@ class SettingsViewController: UIViewController {
             )
             header.pinToVisibleBounds = false
             section.boundarySupplementaryItems = [header]
-            section.interGroupSpacing = 10
+            // 与 Apple TV 系统设置一致：行高 66、行间距 14
+            section.interGroupSpacing = 14
             return section
         }
         return UICollectionView(frame: .zero, collectionViewLayout: layout)
@@ -83,9 +87,10 @@ class SettingsViewController: UIViewController {
         super.viewDidLoad()
         view.addSubview(collectionView)
         collectionView.remembersLastFocusedIndexPath = false
+        collectionView.contentInset = UIEdgeInsets(top: 0, left: 40, bottom: 0, right: 40)
         collectionView.snp.makeConstraints { make in
             make.top.right.bottom.equalToSuperview()
-            make.left.equalToSuperview().offset(20)
+            make.left.equalToSuperview()
         }
 
         collectionView.delegate = self
@@ -342,7 +347,7 @@ extension SettingsViewController {
                     desp: @autoclosure @escaping () -> String,
                     onSelect: (() -> Void)? = nil) -> CellModel
     {
-        return CellModel(title: title, desp: desp()) { update in
+        return CellModel(title: title, desp: desp(), showsChevron: true) { update in
             onSelect?()
             update()
         }
@@ -367,9 +372,16 @@ extension SettingsViewController: UICollectionViewDelegate {
     }
 }
 
+/// 设置行：深灰胶囊，聚焦时整行变白（Apple TV 系统设置样式）
 class SettingsSwitchCell: BLMotionCollectionViewCell {
+    /// Apple TV 系统设置实测：行高 66、间距 14；聚焦时白色胶囊比行高出 9（上下各 4.5）
+    static let rowHeight: CGFloat = 66
+    private static let focusOutset: CGFloat = 4.5
+
     private let titleLabel = UILabel()
     private let descLabel = UILabel()
+    private let chevronView = UIImageView()
+    private let pillView = UIView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -384,28 +396,56 @@ class SettingsSwitchCell: BLMotionCollectionViewCell {
     func set(with model: SettingsViewController.CellModel) {
         titleLabel.text = model.title
         descLabel.text = model.desp()
+        descLabel.isHidden = descLabel.text?.isEmpty ?? true
+        chevronView.isHidden = !model.showsChevron
         model.updateAction = { [weak self] in
             self?.descLabel.text = model.desp()
+            self?.descLabel.isHidden = self?.descLabel.text?.isEmpty ?? true
         }
     }
 
     override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
-        updateColor()
+        // 不缩放，只用白色胶囊表达焦点；外扩随焦点动画一起过渡
+        coordinator.addCoordinatedAnimations {
+            self.updateColor()
+            self.contentView.layoutIfNeeded()
+        }
     }
 
     func setupView() {
+        pillView.backgroundColor = Self.normalBackground
+        pillView.layer.cornerRadius = Self.rowHeight / 2
+        pillView.layer.cornerCurve = .continuous
+        contentView.addSubview(pillView)
+        pillView.snp.makeConstraints { make in
+            make.edges.equalToSuperview().inset(0)
+        }
+
         contentView.addSubview(titleLabel)
         contentView.addSubview(descLabel)
-        contentView.layer.cornerRadius = 10
+        contentView.addSubview(chevronView)
+
+        // 系统设置里的箭头与文字同高（约 38pt 字号）
+        chevronView.image = UIImage(systemName: "chevron.right",
+                                    withConfiguration: UIImage.SymbolConfiguration(pointSize: 38, weight: .medium))
+        chevronView.contentMode = .scaleAspectFit
+        chevronView.setContentHuggingPriority(.required, for: .horizontal)
+        titleLabel.font = .App.rowTitle
+        descLabel.font = .App.rowTitle
 
         titleLabel.snp.makeConstraints { make in
-            make.leading.equalToSuperview().offset(20)
+            make.leading.equalToSuperview().offset(30)
             make.centerY.equalToSuperview()
-            make.trailing.lessThanOrEqualTo(descLabel.snp.leading).offset(-10)
+            make.trailing.lessThanOrEqualTo(descLabel.snp.leading).offset(-20)
         }
 
         descLabel.snp.makeConstraints { make in
-            make.trailing.equalToSuperview().offset(-20)
+            make.trailing.equalToSuperview().offset(-32)
+            make.centerY.equalToSuperview()
+        }
+
+        chevronView.snp.makeConstraints { make in
+            make.trailing.equalToSuperview().offset(-32)
             make.centerY.equalToSuperview()
         }
 
@@ -414,22 +454,19 @@ class SettingsSwitchCell: BLMotionCollectionViewCell {
         updateColor()
     }
 
+    private static let normalBackground = UIColor(white: 1, alpha: 0.1)
+
     func updateColor() {
-        if traitCollection.userInterfaceStyle == .dark {
-            if isFocused {
-                contentView.backgroundColor = UIColor.white
-                titleLabel.textColor = UIColor.black
-                descLabel.textColor = UIColor.black
-            } else {
-                contentView.backgroundColor = UIColor.clear
-                titleLabel.textColor = UIColor.white
-                descLabel.textColor = UIColor.secondaryLabel
-            }
-        } else {
-            contentView.backgroundColor = isFocused ? UIColor.white : UIColor.clear
-            titleLabel.textColor = .black
-            descLabel.textColor = UIColor.secondaryLabel
+        let focused = isFocused
+        // 聚焦时白色胶囊四周各外扩 4，圆角保持胶囊形（与系统设置一致）
+        pillView.snp.updateConstraints { make in
+            make.edges.equalToSuperview().inset(focused ? -Self.focusOutset : 0)
         }
+        pillView.layer.cornerRadius = (Self.rowHeight + (focused ? Self.focusOutset * 2 : 0)) / 2
+        pillView.backgroundColor = focused ? .white : Self.normalBackground
+        titleLabel.textColor = focused ? .black : .white
+        descLabel.textColor = focused ? .black : .secondaryLabel
+        chevronView.tintColor = focused ? .black : .secondaryLabel
     }
 }
 
@@ -448,12 +485,12 @@ class SettingsHeaderView: UICollectionReusableView {
 
     func setup() {
         addSubview(label)
-        label.font = .preferredFont(forTextStyle: .footnote)
+        label.font = .App.sectionTitle
         label.textColor = UIColor.secondaryLabel
+        // 与行内文字左对齐
         label.snp.makeConstraints { make in
-            make.leading.equalToSuperview().offset(20)
-            make.top.equalToSuperview().offset(20)
-            make.bottom.equalToSuperview().offset(-20)
+            make.leading.equalToSuperview().offset(30)
+            make.bottom.equalToSuperview().offset(-16)
         }
     }
 }

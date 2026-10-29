@@ -33,6 +33,8 @@ class BangumiListViewController: StandardVideoCollectionViewController<FollowBan
     override func setupCollectionView() {
         super.setupCollectionView()
         collectionVC.styleOverride = .normal
+        // 追番卡片只有标题 + 进度，没有播放量 / 日期那一行
+        collectionVC.cardShowsMetaLine = false
         collectionVC.pageSize = 24
         collectionVC.loadViewIfNeeded()
         collectionVC.collectionView.contentInset = UIEdgeInsets(top: 40, left: 0, bottom: 40, right: 0)

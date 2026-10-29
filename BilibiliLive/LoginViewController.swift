@@ -54,7 +54,7 @@ class LoginViewController: UIViewController {
 
     private let guideLabel: UILabel = {
         let label = UILabel()
-        label.text = "1 请打开BiliBili官方手机客户端扫码登录\n\n2. 如果登录失败尝试点击重新生成二维码"
+        label.text = "1. 请打开BiliBili官方手机客户端扫码登录\n\n2. 如果登录失败尝试点击重新生成二维码"
         label.font = UIFont.preferredFont(forTextStyle: .headline)
         label.numberOfLines = 0
         label.lineBreakMode = .byTruncatingTail
@@ -189,6 +189,15 @@ class LoginViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .black
 
+        let backgroundImageView = UIImageView(image: UIImage(named: "leaunch"))
+        backgroundImageView.contentMode = .scaleAspectFit
+        backgroundImageView.alpha = 0.4
+        backgroundImageView.isUserInteractionEnabled = false
+        view.addSubview(backgroundImageView)
+        backgroundImageView.snp.makeConstraints { make in
+            make.edges.equalToSuperview()
+        }
+
         view.addSubview(leftContainerView)
         view.addSubview(dividerView)
         view.addSubview(titleLabel)
@@ -226,7 +235,7 @@ class LoginViewController: UIViewController {
 
         titleLabel.snp.makeConstraints { make in
             make.leading.equalTo(dividerView.snp.trailing).offset(100)
-            make.top.equalTo(view.safeAreaLayoutGuide.snp.top).offset(120)
+            make.centerY.equalToSuperview().offset(-140)
         }
 
         guideLabel.snp.makeConstraints { make in

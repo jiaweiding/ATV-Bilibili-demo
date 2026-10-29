@@ -2,22 +2,25 @@ import Kingfisher
 import UIKit
 
 final class AccountSwitcherViewController: UIViewController {
-    private enum Section: Int, CaseIterable {
-        case accounts
-        case actions
+    /// 卡片尺寸和间距；卡片整体靠左，和标题、副标题同一条左边线
+    private enum Layout {
+        static let cardWidth: CGFloat = 300
+        static let cardHeight: CGFloat = 320
+        static let interitemSpacing: CGFloat = 30
+        static let sideInset: CGFloat = 60
     }
 
-    private let containerView = UIVisualEffectView(effect: UIBlurEffect(style: .dark))
+    private let containerView = UIView()
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
-    private let closeButton = UIButton(type: .system)
+
     private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.scrollDirection = .vertical
         layout.minimumLineSpacing = 40
-        layout.minimumInteritemSpacing = 30
-        layout.sectionInset = UIEdgeInsets(top: 40, left: 60, bottom: 40, right: 60)
-        layout.itemSize = CGSize(width: 300, height: 320)
+        layout.minimumInteritemSpacing = Layout.interitemSpacing
+        layout.sectionInset = UIEdgeInsets(top: 40, left: Layout.sideInset, bottom: 40, right: Layout.sideInset)
+        layout.itemSize = CGSize(width: Layout.cardWidth, height: Layout.cardHeight)
         let collection = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collection.backgroundColor = .clear
         collection.remembersLastFocusedIndexPath = true
@@ -29,6 +32,8 @@ final class AccountSwitcherViewController: UIViewController {
     }()
 
     private var accounts: [AccountManager.Account] = []
+    /// 账号卡片左右排开，最后跟一张「添加账号」
+    private var itemCount: Int { accounts.count + 1 }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -53,59 +58,59 @@ final class AccountSwitcherViewController: UIViewController {
 
     private func setupContainer() {
         containerView.clipsToBounds = true
-        containerView.layer.cornerRadius = 36
+        containerView.layer.cornerRadius = BLCornerRadius.lessBig
+        containerView.layer.cornerCurve = .continuous
         containerView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(containerView)
+
+        // Liquid Glass 面板底（tvOS 26+），低版本回退深色毛玻璃
+        let glassView = UIVisualEffectView.makeGlassView(style: .dark, cornerRadius: BLCornerRadius.lessBig)
+        glassView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.addSubview(glassView)
+
         NSLayoutConstraint.activate([
             containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             containerView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             containerView.widthAnchor.constraint(equalToConstant: 1100),
-            containerView.heightAnchor.constraint(equalToConstant: 720),
+            containerView.heightAnchor.constraint(equalToConstant: 600),
+
+            glassView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            glassView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            glassView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            glassView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
         ])
     }
 
     private func setupHeader() {
-        let contentView = containerView.contentView
         titleLabel.text = "账号管理"
-        titleLabel.font = UIFont.systemFont(ofSize: 48, weight: .semibold)
+        titleLabel.font = .App.pageTitle
         titleLabel.textColor = .white
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
         subtitleLabel.text = "快速切换登录账号或添加新的账号"
-        subtitleLabel.font = UIFont.systemFont(ofSize: 26, weight: .regular)
+        subtitleLabel.font = .App.body
         subtitleLabel.textColor = UIColor.white.withAlphaComponent(0.8)
         subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        closeButton.setTitle("关闭", for: .normal)
-        closeButton.setTitleColor(.white, for: .normal)
-        closeButton.titleLabel?.font = UIFont.systemFont(ofSize: 30, weight: .medium)
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        closeButton.addTarget(self, action: #selector(closeTapped), for: .primaryActionTriggered)
-
-        contentView.addSubview(titleLabel)
-        contentView.addSubview(subtitleLabel)
-        contentView.addSubview(closeButton)
+        containerView.addSubview(titleLabel)
+        containerView.addSubview(subtitleLabel)
 
         NSLayoutConstraint.activate([
-            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 60),
-            titleLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 50),
+            titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: 60),
+            titleLabel.topAnchor.constraint(equalTo: containerView.topAnchor, constant: 50),
 
             subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-
-            closeButton.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -60),
-            closeButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
         ])
     }
 
     private func setupCollectionView() {
-        let contentView = containerView.contentView
         collectionView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(collectionView)
+        containerView.addSubview(collectionView)
         NSLayoutConstraint.activate([
-            collectionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            collectionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            collectionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            collectionView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            collectionView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            collectionView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
             collectionView.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 30),
         ])
     }
@@ -115,18 +120,14 @@ final class AccountSwitcherViewController: UIViewController {
         collectionView.reloadData()
     }
 
-    @objc private func closeTapped() {
-        dismiss(animated: true)
-    }
-
     @objc private func handleAccountUpdate() {
         reloadData()
     }
 
     private func presentLogin() {
-        dismiss(animated: true) {
-            AppDelegate.shared.showLogin()
-        }
+        // 登录页盖在账号管理上（而不是换掉根页面），遥控器按返回能退回这里反悔；
+        // 登录成功后 LoginViewController 会自己把根页面换成 Tab 栏，整叠弹窗一起消失
+        present(LoginViewController.create(), animated: true)
     }
 
     private func switchToAccount(_ account: AccountManager.Account) {
@@ -143,56 +144,99 @@ final class AccountSwitcherViewController: UIViewController {
 }
 
 extension AccountSwitcherViewController: UICollectionViewDataSource {
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        Section.allCases.count
-    }
-
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        guard let section = Section(rawValue: section) else { return 0 }
-        switch section {
-        case .accounts:
-            return accounts.count
-        case .actions:
-            return 1
-        }
+        itemCount
     }
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        guard let section = Section(rawValue: indexPath.section) else { return UICollectionViewCell() }
-        switch section {
-        case .accounts:
+        if indexPath.item < accounts.count {
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: AccountSwitcherCell.reuseIdentifier, for: indexPath) as! AccountSwitcherCell
             let account = accounts[indexPath.item]
             cell.configure(with: account, active: account.profile.mid == AccountManager.shared.activeAccount?.profile.mid)
             return cell
-        case .actions:
-            let cell = collectionView.dequeueReusableCell(withReuseIdentifier: AccountSwitcherAddCell.reuseIdentifier, for: indexPath) as! AccountSwitcherAddCell
-            return cell
         }
+        return collectionView.dequeueReusableCell(withReuseIdentifier: AccountSwitcherAddCell.reuseIdentifier, for: indexPath)
     }
 }
 
 extension AccountSwitcherViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
-        guard let section = Section(rawValue: indexPath.section) else { return }
-        switch section {
-        case .accounts:
-            let account = accounts[indexPath.item]
-            guard account.profile.mid != AccountManager.shared.activeAccount?.profile.mid else { return }
-            switchToAccount(account)
-        case .actions:
+        guard indexPath.item < accounts.count else {
             presentLogin()
+            return
         }
+        let account = accounts[indexPath.item]
+        guard account.profile.mid != AccountManager.shared.activeAccount?.profile.mid else { return }
+        switchToAccount(account)
     }
 }
 
-private final class AccountSwitcherCell: UICollectionViewCell {
+/// 账号卡片：Liquid Glass 底，聚焦时整块变白、文字转黑
+private class AccountSwitcherCardCell: UICollectionViewCell {
+    static let focusFillColor = UIColor.white.withAlphaComponent(0.95)
+
+    /// Liquid Glass 卡片底（tvOS 26+），低版本回退毛玻璃
+    let effectView = UIVisualEffectView.makeGlassView(cornerRadius: BLCornerRadius.lessBig)
+    /// 聚焦时盖在玻璃上的白色高光，和侧栏白胶囊、Tab 自定义页同一套焦点语言
+    let focusOverlayView = UIView()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        contentView.clipsToBounds = false
+        focusOverlayView.backgroundColor = Self.focusFillColor
+        focusOverlayView.alpha = 0
+
+        effectView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(effectView)
+
+        focusOverlayView.translatesAutoresizingMaskIntoConstraints = false
+        effectView.contentView.addSubview(focusOverlayView)
+
+        NSLayoutConstraint.activate([
+            effectView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            effectView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            effectView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            effectView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            focusOverlayView.leadingAnchor.constraint(equalTo: effectView.contentView.leadingAnchor),
+            focusOverlayView.trailingAnchor.constraint(equalTo: effectView.contentView.trailingAnchor),
+            focusOverlayView.topAnchor.constraint(equalTo: effectView.contentView.topAnchor),
+            focusOverlayView.bottomAnchor.constraint(equalTo: effectView.contentView.bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        focusOverlayView.alpha = 0
+        transform = .identity
+        // 复用出去时多半是未聚焦的，颜色先复位，避免留下上一轮的黑字
+        updateContentColor()
+    }
+
+    override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
+        super.didUpdateFocus(in: context, with: coordinator)
+        coordinator.addCoordinatedAnimations {
+            self.focusOverlayView.alpha = self.isFocused ? 1 : 0
+            self.transform = self.isFocused ? CGAffineTransform(scaleX: 1.06, y: 1.06) : .identity
+            self.updateContentColor()
+        }
+    }
+
+    /// 子类把图标、文字的颜色跟着焦点一起翻
+    func updateContentColor() {}
+}
+
+private final class AccountSwitcherCell: AccountSwitcherCardCell {
     static let reuseIdentifier = "AccountSwitcherCell"
 
     private let avatarView = UIImageView()
     private let nameLabel = UILabel()
     private let badgeLabel = UILabel()
-    private let background = UIView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -207,76 +251,56 @@ private final class AccountSwitcherCell: UICollectionViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         avatarView.image = nil
-        badgeLabel.isHidden = true
         avatarView.backgroundColor = .clear
-        avatarView.tintColor = nil
-        background.layer.borderWidth = 0
-        background.transform = .identity
+        badgeLabel.isHidden = true
+    }
+
+    override func updateContentColor() {
+        nameLabel.textColor = isFocused ? .black : .white
     }
 
     private func configure() {
-        contentView.clipsToBounds = false
-        background.translatesAutoresizingMaskIntoConstraints = false
-        background.backgroundColor = UIColor.white.withAlphaComponent(0.08)
-        background.layer.cornerRadius = 28
-        background.layer.borderWidth = 0
-        contentView.addSubview(background)
-
-        avatarView.translatesAutoresizingMaskIntoConstraints = false
         avatarView.contentMode = .scaleAspectFill
         avatarView.layer.cornerRadius = 80
         avatarView.clipsToBounds = true
 
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.font = UIFont.systemFont(ofSize: 30, weight: .medium)
+        nameLabel.font = .App.rowTitle
         nameLabel.textColor = .white
         nameLabel.textAlignment = .center
         nameLabel.numberOfLines = 2
 
-        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
         badgeLabel.text = "当前使用"
-        badgeLabel.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
+        badgeLabel.font = .App.badge
         badgeLabel.textColor = .white
         badgeLabel.backgroundColor = UIColor.systemBlue
-        badgeLabel.layer.cornerRadius = 16
+        badgeLabel.layer.cornerRadius = 22
+        badgeLabel.layer.cornerCurve = .continuous
         badgeLabel.clipsToBounds = true
         badgeLabel.textAlignment = .center
         badgeLabel.isHidden = true
 
-        background.addSubview(avatarView)
-        background.addSubview(nameLabel)
-        background.addSubview(badgeLabel)
+        // 头像 / 名字 / 状态徽章居中排一列：徽章隐藏或名字两行时整体自动重新居中，
+        // 不会像固定边距那样贴着卡片底边
+        let stackView = UIStackView(arrangedSubviews: [avatarView, nameLabel, badgeLabel])
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.spacing = 16
+        stackView.setCustomSpacing(24, after: avatarView)
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stackView)
 
         NSLayoutConstraint.activate([
-            background.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            background.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            background.topAnchor.constraint(equalTo: contentView.topAnchor),
-            background.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-
-            avatarView.centerXAnchor.constraint(equalTo: background.centerXAnchor),
-            avatarView.topAnchor.constraint(equalTo: background.topAnchor, constant: 36),
             avatarView.widthAnchor.constraint(equalToConstant: 160),
             avatarView.heightAnchor.constraint(equalTo: avatarView.widthAnchor),
 
-            nameLabel.topAnchor.constraint(equalTo: avatarView.bottomAnchor, constant: 24),
-            nameLabel.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 16),
-            nameLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -16),
-
-            badgeLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 16),
-            badgeLabel.centerXAnchor.constraint(equalTo: background.centerXAnchor),
             badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 140),
             badgeLabel.heightAnchor.constraint(equalToConstant: 44),
-        ])
-    }
 
-    override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
-        super.didUpdateFocus(in: context, with: coordinator)
-        let isFocused = (context.nextFocusedView == self)
-        coordinator.addCoordinatedAnimations {
-            self.background.layer.borderWidth = isFocused ? 4 : 0
-            self.background.layer.borderColor = isFocused ? UIColor.systemBlue.cgColor : UIColor.clear.cgColor
-            self.background.transform = isFocused ? CGAffineTransform(scaleX: 1.06, y: 1.06) : .identity
-        }
+            stackView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            stackView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            stackView.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -16),
+        ])
     }
 
     func configure(with account: AccountManager.Account, active: Bool) {
@@ -285,19 +309,20 @@ private final class AccountSwitcherCell: UICollectionViewCell {
             avatarView.kf.setImage(with: url)
         } else {
             avatarView.image = UIImage(systemName: "person.crop.circle.fill")
-            avatarView.tintColor = UIColor.white.withAlphaComponent(0.8)
-            avatarView.backgroundColor = UIColor.white.withAlphaComponent(0.05)
+            avatarView.tintColor = .white
+            // 白卡片上也要看得见，占位底色不能太淡
+            avatarView.backgroundColor = UIColor(white: 0.3, alpha: 0.6)
         }
         badgeLabel.isHidden = !active
+        updateContentColor()
     }
 }
 
-private final class AccountSwitcherAddCell: UICollectionViewCell {
+private final class AccountSwitcherAddCell: AccountSwitcherCardCell {
     static let reuseIdentifier = "AccountSwitcherAddCell"
 
     private let iconView = UIImageView()
     private let titleLabel = UILabel()
-    private let background = UIView()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -309,57 +334,36 @@ private final class AccountSwitcherAddCell: UICollectionViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
-        background.layer.borderWidth = 0
-        background.transform = .identity
+    override func updateContentColor() {
+        titleLabel.textColor = isFocused ? .black : .white
     }
 
     private func configure() {
-        contentView.clipsToBounds = false
-        background.translatesAutoresizingMaskIntoConstraints = false
-        background.backgroundColor = UIColor.white.withAlphaComponent(0.08)
-        background.layer.cornerRadius = 28
-        contentView.addSubview(background)
-
-        iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.contentMode = .scaleAspectFit
         iconView.image = UIImage(systemName: "plus.circle.fill")
         iconView.tintColor = .systemBlue
 
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.text = "添加账号"
-        titleLabel.font = UIFont.systemFont(ofSize: 30, weight: .medium)
+        titleLabel.font = .App.rowTitle
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
 
-        background.addSubview(iconView)
-        background.addSubview(titleLabel)
+        // 和账号卡片一样居中排一列，两张卡片的内容基线一致
+        let stackView = UIStackView(arrangedSubviews: [iconView, titleLabel])
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.spacing = 24
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stackView)
 
         NSLayoutConstraint.activate([
-            background.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            background.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            background.topAnchor.constraint(equalTo: contentView.topAnchor),
-            background.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
-
-            iconView.topAnchor.constraint(equalTo: background.topAnchor, constant: 80),
-            iconView.centerXAnchor.constraint(equalTo: background.centerXAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 120),
             iconView.heightAnchor.constraint(equalTo: iconView.widthAnchor),
 
-            titleLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 24),
-            titleLabel.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 16),
-            titleLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -16),
+            stackView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            stackView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            stackView.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 16),
+            stackView.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -16),
         ])
-    }
-
-    override func didUpdateFocus(in context: UIFocusUpdateContext, with coordinator: UIFocusAnimationCoordinator) {
-        super.didUpdateFocus(in: context, with: coordinator)
-        let isFocused = (context.nextFocusedView == self)
-        coordinator.addCoordinatedAnimations {
-            self.background.layer.borderWidth = isFocused ? 4 : 0
-            self.background.layer.borderColor = isFocused ? UIColor.systemBlue.cgColor : UIColor.clear.cgColor
-            self.background.transform = isFocused ? CGAffineTransform(scaleX: 1.06, y: 1.06) : .identity
-        }
     }
 }

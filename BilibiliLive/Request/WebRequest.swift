@@ -305,12 +305,11 @@ extension WebRequest {
         try await request(url: EndPoint.userEpisodeInfo, parameters: ["ep_id": epid])
     }
 
-    static func requestHistory(complete: (([HistoryData]) -> Void)?) {
+    static func requestHistory(complete: (([HistoryData]?) -> Void)?) {
         request(url: "https://api.bilibili.com/x/v2/history") {
             (result: Result<[HistoryData], RequestError>) in
-            if let data = try? result.get() {
-                complete?(data)
-            }
+            // 失败也要回调，调用方才能收掉加载状态
+            complete?(try? result.get())
         }
     }
 
@@ -689,7 +688,7 @@ extension WebRequest {
     }
 }
 
-extension WebRequest.UpSpaceInfo : AvatarProviding {
+extension WebRequest.UpSpaceInfo: AvatarProviding {
     var avatar: URL? { face }
 }
 
@@ -857,6 +856,8 @@ struct VideoDetail: Codable, Hashable {
             struct UgcVideoInfo: Codable, Hashable, DisplayData {
                 var ownerName: String { "" }
                 var pic: URL? { arc.pic }
+                /// 合集小节没有 UP 主，信息行只放发布时间
+                var date: String? { DateFormatter.stringFor(timestamp: arc.ctime) }
                 let id: Int
                 let aid: Int
                 let cid: Int
@@ -870,11 +871,9 @@ struct VideoDetail: Codable, Hashable {
             }
         }
 
+        /// 时长用时间轴写法：2:20 / 1:02:20
         var durationString: String {
-            let formatter = DateComponentsFormatter()
-            formatter.allowedUnits = [.hour, .minute, .second]
-            formatter.unitsStyle = .brief
-            return formatter.string(from: TimeInterval(duration)) ?? ""
+            return TimeInterval(duration).timeString()
         }
     }
 
@@ -969,9 +968,20 @@ struct Replys: Codable, Hashable {
             }
         }
 
+        struct ReplyControl: Codable, Hashable {
+            /// 「1天前发布」，老评论是「01-07发布」
+            let time_desc: String?
+            /// 「共3条回复」
+            let sub_reply_entry_text: String?
+        }
+
         let member: Member
         let content: Content
         let replies: [Reply]?
+        let ctime: Int?
+        /// 楼中楼条数
+        let rcount: Int?
+        let reply_control: ReplyControl?
     }
 
     let replies: [Reply]?

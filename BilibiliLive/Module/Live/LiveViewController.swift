@@ -33,6 +33,8 @@ class MyLiveViewController: StandardVideoCollectionViewController<LiveRoom> {
     override func setupCollectionView() {
         super.setupCollectionView()
         collectionVC.styleOverride = .sideBar
+        // 直播卡片只有标题 + 主播名，没有播放量 / 日期那一行
+        collectionVC.cardShowsMetaLine = false
         collectionVC.pageSize = 10
         reloadInterval = 15 * 60
     }
@@ -63,6 +65,8 @@ class AreaLiveViewController: StandardVideoCollectionViewController<AreaLiveRoom
     override func setupCollectionView() {
         super.setupCollectionView()
         collectionVC.styleOverride = .sideBar
+        // 直播卡片只有标题 + 主播名，没有播放量 / 日期那一行
+        collectionVC.cardShowsMetaLine = false
         collectionVC.pageSize = 10
         reloadInterval = 15 * 60
     }

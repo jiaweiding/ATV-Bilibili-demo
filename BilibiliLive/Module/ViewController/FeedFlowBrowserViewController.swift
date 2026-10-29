@@ -54,7 +54,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     private let listTitleLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 42, weight: .bold)
+        label.font = .App.pageTitle
         label.textColor = .white
         return label
     }()
@@ -95,7 +95,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     private let previewTitleLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 44, weight: .bold)
+        label.font = .App.pageTitle
         label.textColor = .white
         label.numberOfLines = 2
         return label
@@ -103,7 +103,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     private let previewMetaLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 28, weight: .medium)
+        label.font = .App.body
         label.textColor = UIColor.white.withAlphaComponent(0.85)
         label.numberOfLines = 1
         return label
@@ -111,7 +111,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     private let previewHintLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 24, weight: .medium)
+        label.font = .App.meta
         label.textColor = UIColor.white.withAlphaComponent(0.72)
         label.numberOfLines = 2
         return label
@@ -119,7 +119,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     private let emptyStateLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 30, weight: .medium)
+        label.font = .App.body
         label.textColor = UIColor.white.withAlphaComponent(0.72)
         label.numberOfLines = 2
         label.textAlignment = .center
@@ -222,6 +222,7 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
         previewHintLabel.text = dataSource.loadingHintText
         previewLoadingView.startAnimating()
+        blSetLoading(true)
         dataLoadTask = Task { [weak self] in
             await self?.refreshFromStart(generation: generation)
         }
@@ -242,10 +243,12 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
         let activeIndex = max(focusedIndex, sequenceProvider.currentIndex)
         guard items.count < targetCount || items.count - activeIndex - 1 < dataSource.trailingPrefetchTargetCount else { return }
         isLoading = true
+        blSetLoading(true)
         defer {
             if generation == loadGeneration {
                 isLoading = false
                 loadMoreTask = nil
+                blSetLoading(false)
             }
         }
 
@@ -278,6 +281,12 @@ class FeedFlowBrowserViewController: UIViewController, BLTabBarContentVCProtocol
 
     @MainActor
     private func refreshFromStart(generation: Int) async {
+        // 本次加载结束时收掉右下角的加载指示；被新的刷新取代时由新的那次负责
+        defer {
+            if generation == loadGeneration {
+                blSetLoading(false)
+            }
+        }
         do {
             let refreshedItems = try await dataSource.refreshFromStart(targetCount: dataSource.initialTargetCount,
                                                                        maxSourcePages: dataSource.initialMaxSourcePages)

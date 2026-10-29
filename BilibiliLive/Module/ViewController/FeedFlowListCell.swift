@@ -57,7 +57,7 @@ final class FeedFlowListCell: BLMotionCollectionViewCell {
             make.leading.equalTo(imageView.snp.trailing).offset(18)
             make.trailing.equalToSuperview().offset(-18)
         }
-        titleLabel.font = .systemFont(ofSize: 28, weight: .semibold)
+        titleLabel.font = .App.rowTitle
         titleLabel.textColor = .white
         titleLabel.numberOfLines = 2
 
@@ -66,7 +66,7 @@ final class FeedFlowListCell: BLMotionCollectionViewCell {
             make.trailing.equalTo(titleLabel)
             make.bottom.equalToSuperview().offset(-18)
         }
-        metaLabel.font = .systemFont(ofSize: 22, weight: .medium)
+        metaLabel.font = .App.meta
         metaLabel.textColor = UIColor.white.withAlphaComponent(0.78)
         metaLabel.numberOfLines = 1
     }

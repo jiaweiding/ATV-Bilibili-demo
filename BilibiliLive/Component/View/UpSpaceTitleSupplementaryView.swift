@@ -60,29 +60,31 @@ class UpSpaceTitleSupplementaryView: UICollectionReusableView {
             make.trailing.lessThanOrEqualTo(sortButton.snp.leading).offset(-40)
         }
 
+        // 纯图标按钮做成和详情页关注按钮一样的正圆：
+        // 玻璃圆角跟着高度走，宽高不相等时就是扁的圆角矩形。
+        // 这一排背后没有封面，玻璃本身看不出边缘，垫一层淡白色
+        for button in [sortButton, followButton, blockButton] {
+            button.restingWhiteAlpha = 0.12
+            button.snp.makeConstraints { make in
+                make.centerY.equalToSuperview()
+                make.width.height.equalTo(80)
+            }
+        }
+
         blockButton.snp.makeConstraints { make in
             make.trailing.equalToSuperview().offset(-30)
-            make.centerY.equalToSuperview()
-            make.width.equalTo(blockButton.snp.height).multipliedBy(20.5 / 18.0)
-            make.height.equalTo(80)
         }
 
         followButton.snp.makeConstraints { make in
             make.trailing.equalTo(blockButton.snp.leading).offset(-20)
-            make.centerY.equalToSuperview()
-            make.width.equalTo(followButton.snp.height).multipliedBy(20.5 / 18.0)
-            make.height.equalTo(80)
         }
 
         sortButton.snp.makeConstraints { make in
             make.trailing.equalTo(followButton.snp.leading).offset(-20)
-            make.centerY.equalToSuperview()
-            make.width.equalTo(sortButton.snp.height).multipliedBy(20.5 / 18.0)
-            make.height.equalTo(80)
         }
 
-        nameLabel.font = UIFont.systemFont(ofSize: 30, weight: .semibold)
-        despLabel.font = UIFont.systemFont(ofSize: 23, weight: .regular)
+        nameLabel.font = .App.rowTitle
+        despLabel.font = .App.meta
         despLabel.textColor = UIColor(named: "titleColor")
         despLabel.numberOfLines = 2
 

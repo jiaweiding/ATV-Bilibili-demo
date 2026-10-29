@@ -43,13 +43,13 @@ final class VideoPlayerInfoActionCell: BLMotionCollectionViewCell {
         blurView.contentView.addSubview(imageView)
         imageView.translatesAutoresizingMaskIntoConstraints = false
 
-        titleLabel.font = .systemFont(ofSize: 30, weight: .semibold)
+        titleLabel.font = .App.rowTitle
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 2
         blurView.contentView.addSubview(titleLabel)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        valueLabel.font = .systemFont(ofSize: 24, weight: .medium)
+        valueLabel.font = .App.meta
         valueLabel.textAlignment = .center
         valueLabel.numberOfLines = 1
         blurView.contentView.addSubview(valueLabel)

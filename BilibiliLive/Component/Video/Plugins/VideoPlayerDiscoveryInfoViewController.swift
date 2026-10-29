@@ -11,10 +11,11 @@ import UIKit
 final class VideoPlayerDiscoveryInfoViewController: UIViewController {
     private enum Layout {
         static let cardWidth: CGFloat = 320
-        static let cardHeight: CGFloat = 248
+        /// 卡片和详情页的合集 / 推荐视频一样，用 Feed 的同款 cell
+        static var cardHeight: CGFloat { Settings.displayStyle.cardHeight(cardWidth: cardWidth, cardShowsMetaLine: false) }
         static let sectionInsets = NSDirectionalEdgeInsets(top: 28, leading: 32, bottom: 28, trailing: 32)
         static let interGroupSpacing: CGFloat = 28
-        static let preferredHeight: CGFloat = 360
+        static var preferredHeight: CGFloat { cardHeight + sectionInsets.top + sectionInsets.bottom + 16 }
     }
 
     struct Entry: Hashable {
@@ -54,13 +55,14 @@ final class VideoPlayerDiscoveryInfoViewController: UIViewController {
         collectionView.dataSource = self
         collectionView.remembersLastFocusedIndexPath = true
         collectionView.alwaysBounceVertical = false
-        collectionView.register(RelatedVideoCell.self, forCellWithReuseIdentifier: String(describing: RelatedVideoCell.self))
+        collectionView.clipsToBounds = false
+        collectionView.register(FeedCollectionViewCell.self, forCellWithReuseIdentifier: String(describing: FeedCollectionViewCell.self))
         return collectionView
     }()
 
     private let emptyLabel: UILabel = {
         let label = UILabel()
-        label.font = .systemFont(ofSize: 28, weight: .medium)
+        label.font = .App.body
         label.textColor = UIColor.white.withAlphaComponent(0.75)
         label.numberOfLines = 2
         label.textAlignment = .center
@@ -128,9 +130,11 @@ extension VideoPlayerDiscoveryInfoViewController: UICollectionViewDataSource, UI
 
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         let entry = entries[indexPath.item]
-        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: String(describing: RelatedVideoCell.self),
-                                                      for: indexPath) as! RelatedVideoCell
-        cell.update(data: entry.displayData)
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: String(describing: FeedCollectionViewCell.self),
+                                                      for: indexPath) as! FeedCollectionViewCell
+        // 这一行只有标题和 UP 主，没有播放量/日期
+        cell.cardShowsMetaLine = false
+        cell.setup(data: entry.displayData)
         return cell
     }
 

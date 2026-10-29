@@ -81,8 +81,10 @@ class StandardVideoCollectionViewController<T: PlayableData>: UIViewController, 
     func reallyReloadData() async {
         if reloading { return }
         reloading = true
+        blSetLoading(true)
         defer {
             reloading = false
+            blSetLoading(false)
         }
         lastReloadDate = Date()
         page = 1
@@ -102,6 +104,8 @@ class StandardVideoCollectionViewController<T: PlayableData>: UIViewController, 
     private func loadMore() {
         guard supportPullToLoad() else { return }
         Task {
+            blSetLoading(true)
+            defer { blSetLoading(false) }
             do {
                 if let res = (try? await request(page: page + 1)) {
                     collectionVC.appendData(displayData: res)

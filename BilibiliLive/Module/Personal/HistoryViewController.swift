@@ -33,8 +33,13 @@ class HistoryViewController: UIViewController {
 
 extension HistoryViewController: BLTabBarContentVCProtocol {
     func reloadData() {
+        blSetLoading(true)
         WebRequest.requestHistory { [weak self] datas in
-            self?.collectionVC.displayDatas = datas
+            guard let self else { return }
+            blSetLoading(false)
+            if let datas {
+                collectionVC.displayDatas = datas
+            }
         }
     }
 }

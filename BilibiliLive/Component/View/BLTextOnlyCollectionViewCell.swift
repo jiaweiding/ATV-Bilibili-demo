@@ -29,8 +29,8 @@ class BLTextOnlyCollectionViewCell: BLMotionCollectionViewCell {
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
         titleLabel.numberOfLines = 2
-        titleLabel.font = UIFont.systemFont(ofSize: 26, weight: .medium)
-        effectView.layer.cornerRadius = 16
+        titleLabel.font = .App.rowTitle
+        effectView.layer.cornerRadius = BLCornerRadius.little
         effectView.clipsToBounds = true
     }
 

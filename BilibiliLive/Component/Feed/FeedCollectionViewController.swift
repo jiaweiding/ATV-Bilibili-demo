@@ -15,12 +15,14 @@ protocol DisplayData: Hashable, AvatarProviding {
     var pic: URL? { get }
     var avatar: URL? { get }
     var date: String? { get }
+    var isFollowed: Bool { get }
     var overlay: DisplayOverlay? { get }
 }
 
 extension DisplayData {
     var avatar: URL? { return nil }
     var date: String? { return nil }
+    var isFollowed: Bool { return false }
     var overlay: DisplayOverlay? { return nil }
 }
 
@@ -92,6 +94,8 @@ class FeedCollectionViewController: UIViewController {
     }
 
     var styleOverride: FeedDisplayStyle?
+    /// 卡片是否有「播放量 · 日期」那一行；番剧 / 追番列表没有，设为 false 让行距收紧
+    var cardShowsMetaLine = true
     var didSelect: ((any DisplayData) -> Void)?
     var didLongPress: ((any DisplayData) -> Void)?
     var loadMore: (() -> Void)?
@@ -164,12 +168,12 @@ class FeedCollectionViewController: UIViewController {
 
     private func makeCollectionViewLayout() -> UICollectionViewLayout {
         UICollectionViewCompositionalLayout {
-            [weak self] _, _ in
-            return self?.makeGridLayoutSection()
+            [weak self] _, environment in
+            return self?.makeGridLayoutSection(environment: environment)
         }
     }
 
-    private func makeGridLayoutSection() -> NSCollectionLayoutSection {
+    private func makeGridLayoutSection(environment: NSCollectionLayoutEnvironment) -> NSCollectionLayoutSection {
         var style = Settings.displayStyle
         if parent?.parent is PersonalViewController {
             style = .sideBar
@@ -178,12 +182,28 @@ class FeedCollectionViewController: UIViewController {
             style = styleOverride
         }
 
-        let heightDimension = NSCollectionLayoutDimension.estimated(style.heightEstimated)
+        let hSpacing: CGFloat = style == .large ? 25 : 20
+        let vSpacing: CGFloat = 60
+        let edgeSpacing: CGFloat = 30
+        let baseSpacing: CGFloat = style == .sideBar ? 24 : 0
+
+        // 左右各补偿一段安全区，让首尾卡片对齐系统内容边距；
+        // 列表本身就在安全区之外时（如直播页侧栏右侧）没有可补偿的边距，保留卡片内边距
+        let compLeading = min(hSpacing, max(0, collectionView.safeAreaInsets.left))
+        let compTrailing = min(hSpacing, max(0, collectionView.safeAreaInsets.right))
+
+        // 用卡片内容的精确高度作为估算值：估算值偏大时卡片底部会多出空白，把行间距撑得很大
+        let containerWidth = environment.container.effectiveContentSize.width
+        let sectionWidth = (containerWidth > 0 ? containerWidth : 1760) + compLeading + compTrailing
+        let itemWidth = sectionWidth * style.fractionalWidth
+        let cardWidth = itemWidth - hSpacing * 2
+        let estimatedHeight = cardWidth * 9 / 16 + 12 + style.infoMinHeight(cardShowsMetaLine: cardShowsMetaLine)
+
+        let heightDimension = NSCollectionLayoutDimension.estimated(estimatedHeight)
         let item = NSCollectionLayoutItem(layoutSize: NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(style.fractionalWidth),
             heightDimension: heightDimension
         ))
-        let hSpacing: CGFloat = style == .large ? 35 : 30
         item.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: hSpacing, bottom: 0, trailing: hSpacing)
         let group = NSCollectionLayoutGroup.horizontal(
             layoutSize: NSCollectionLayoutSize(
@@ -193,13 +213,9 @@ class FeedCollectionViewController: UIViewController {
             repeatingSubitem: item,
             count: style.feedColCount
         )
-        let vSpacing: CGFloat = style == .large ? 24 : 16
-        let baseSpacing: CGFloat = style == .sideBar ? 24 : 0
-        group.edgeSpacing = NSCollectionLayoutEdgeSpacing(leading: .fixed(baseSpacing), top: .fixed(vSpacing), trailing: .fixed(0), bottom: .fixed(vSpacing))
         let section = NSCollectionLayoutSection(group: group)
-        if baseSpacing > 0 {
-            section.contentInsets = NSDirectionalEdgeInsets(top: baseSpacing, leading: 0, bottom: 0, trailing: 0)
-        }
+        section.interGroupSpacing = vSpacing
+        section.contentInsets = NSDirectionalEdgeInsets(top: baseSpacing + edgeSpacing, leading: -compLeading, bottom: edgeSpacing, trailing: -compTrailing)
 
         if showHeader {
             let headerHeight = customHeaderConfig?.estimatedHeight ?? 44
@@ -211,6 +227,8 @@ class FeedCollectionViewController: UIViewController {
                 elementKind: headerKind,
                 alignment: .top
             )
+            // 头部标题与卡片左边缘对齐
+            titleSupplementary.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: hSpacing, bottom: 0, trailing: hSpacing)
             section.boundarySupplementaryItems = [titleSupplementary]
         }
         return section
@@ -245,6 +263,7 @@ class FeedCollectionViewController: UIViewController {
     private func makeCellRegistration() -> DisplayCellRegistration {
         DisplayCellRegistration { [weak self] cell, indexPath, displayData in
             cell.styleOverride = self?.styleOverride
+            cell.cardShowsMetaLine = self?.cardShowsMetaLine ?? true
             cell.setup(data: displayData.data)
             cell.onLongPress = {
                 self?.didLongPress?(displayData.data)
@@ -284,8 +303,8 @@ extension FeedCollectionViewController: UICollectionViewDelegate {
 extension FeedDisplayStyle {
     var feedColCount: Int {
         switch self {
-        case .normal: return 4
-        case .large, .sideBar: return 3
+        case .normal, .sideBar: return 4
+        case .large: return 3
         }
     }
 }

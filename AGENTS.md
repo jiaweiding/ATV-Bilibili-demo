@@ -127,3 +127,7 @@ playerVC.updateMenus()   // rebuilds AVPlayerViewController info panel menus fro
 - **Danmaku:** Video danmaku uses Protobuf (`dm.pb.swift`); live danmaku uses a custom WebSocket protocol with Brotli-compressed payloads parsed in `LiveDanMuProvider`.
 - **Request Signing:** API calls require both MD5 signing (`ApiRequest`) and WBI signing (`WebRequest+WbiSign`). Unsigned requests will fail with auth errors.
 - **Tab Customization:** Tab order is stored in `UserDefaults` and read by `BLTabBarViewController` via the factory pattern at launch.
+
+## Project Records
+
+- `docs/PROJECT_NOTES.md` — detailed UI design conventions, the Tab bar customization model (fixed sections + `isHidden`), session change log, and known pitfalls. Read this before changing UI.
