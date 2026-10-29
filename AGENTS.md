@@ -66,7 +66,7 @@ All interactive cells and buttons are built for tvOS focus engine — expect sca
 
 **`BLMotionCollectionViewCell`** — Base `UICollectionViewCell` providing parallax tilt + scale-on-focus. All feed/settings cells subclass this. Override `setup()` for layout and set `scaleFactor` for zoom intensity.
 - **`BLSettingLineCollectionViewCell`** — Horizontal card, 40pt font, exposes `makeLayout()` static method returning a ready-made `NSCollectionLayoutSection` (70pt height, 0.9 group width).
-- **`BLTextOnlyCollectionViewCell`** — Dark blur card, centered multi-line label. scaleFactor = 1.15.
+- **`BLTextOnlyCollectionViewCell`** — Liquid Glass card (tvOS 26+, dark blur fallback), centered multi-line label, white 0.95 focus overlay + black text. scaleFactor = 1.1. Used by the video detail episode list and page-range buttons; corner radius is `min(34, height × 0.3)` so the 300×150 episode cards and 200×90 range buttons share it.
 
 **`BLOverlayView`** — Gradient overlay for feed cards. Call `configure(_ overlay: DisplayOverlay)` with left/right `DisplayOverlayItem` arrays (SF Symbol icon + text) and an optional colored badge. Used inside `FeedCollectionViewCell`.
 

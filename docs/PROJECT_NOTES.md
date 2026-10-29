@@ -128,6 +128,7 @@ Tab 自定义页会自动列出新页面，`Settings.normalize()` 会自动补�
 | Tab 自定义卡片 | 200×140、圆角 34、图标 44（52 方框）、标题 31、间距 10、卡片间距 30 |
 | 账号管理 | 面板 1100×600、圆角 34；卡片 300×320、间距 30、左内边距 60；头像 160、缩放 1.06 |
 | 视频详情 | 播放按钮宽 240、其余 200；UP 行玻璃高 80、头像 64；推荐/合集用 Feed cell（cardWidth 360） |
+| 视频选集 | 选集卡 300×150、范围按钮 200×90；`BLTextOnlyCollectionViewCell` 玻璃底，圆角 `min(34, 高度×0.3)`；聚焦白 0.95 + 黑字、缩放 1.1；文字 `.App.rowTitle` 居中两行 |
 | FollowUps | UpCell 玻璃圆角 25、聚焦白 0.95、名字 Marquee |
 | 刷新指示器 | 右下角 64pt 玻璃圆点（`BLLoadingIndicator` / `blSetLoading`） |
 
@@ -230,6 +231,13 @@ struct TabBarPagePlacement: Codable, Hashable {
 - 工作区里曾有一套未提交的新图标（粉色 B 站 TV 标志，`Group 7-2.png` / `Group 1-2.png` / `Group 1-3.png`），已按用户要求还原到 git 提交版本（22 娘 chibi 图标，`App Icon.imagestack` 的 `3.jpg`）。
 - 还原方式：新图标 PNG 移到 `/tmp/ATV-Bilibili-AppIcon-new-20261029/`（临时备份），再 `git checkout -- "BilibiliLive/Supporting Files/Assets.xcassets/App Icon & Top Shelf Image.brandassets"`。
 - 重新构建安装后，模拟器主屏幕图标已恢复为旧版。
+
+### 5.8 视频选集卡片玻璃化
+
+- `Component/View/BLTextOnlyCollectionViewCell.swift` 从「深色模糊卡片」改为 Liquid Glass：`makeGlassView(cornerRadius: BLCornerRadius.lessBig)` 打底，聚焦时盖 `white 0.95`、文字转黑，`scaleFactor = 1.1`。
+- 该 cell 同时用于详情页「视频选集」的选集卡（300×150）和分段范围按钮（200×90），所以圆角在 `layoutSubviews` 里取 `min(34, bounds.height * 0.3)`：大卡片保持 34，小按钮自动收一点，不会变成半颗胶囊。
+- 注意 `makeGlassView` 会关掉交互，`titleLabel` 和白色高光都加在 `effectView.contentView` 里，cell 本身负责焦点。
+- 验证：`BL_DEBUG_PAGE=videoDetail` + 临时焦点钩子截图确认两种状态（未聚焦深色玻璃白字 / 聚焦白底黑字），之后钩子已删除，`rg "BL_DEBUG"` 无残留，正常启动无回归。
 
 ---
 
