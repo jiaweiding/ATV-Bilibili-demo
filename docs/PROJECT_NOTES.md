@@ -123,14 +123,14 @@ Tab 自定义页会自动列出新页面，`Settings.normalize()` 会自动补�
 | --- | --- |
 | 侧栏（排行榜/收藏/我的/直播） | 面板宽 300、圆角 34、行高 66、行距 10、内边距 16、文字 30 semibold、图标 26 |
 | 设置列表 | 行高 66、行距 14、胶囊圆角 33、白 0.1 底；聚焦白胶囊长到 75、文字转黑、不缩放 |
-| Feed 卡片 | 16:9 封面、时长黑胶囊右下、红角标左下、无头像；标题 29 / UP 主 25 + ✓ / `N万播放 · 日期` 25；聚焦不缩放、封面 4pt 白边 |
+| Feed 卡片 | 16:9 封面、时长黑胶囊右下、红角标左下、无头像；标题 29 / UP 主 25 + ✓ / `N万播放 · 日期` 25；聚焦不缩放、封面 6pt 白边 |
 | Feed 网格 | 卡片对齐安全区（两侧 80）；列距 60、行距 60（用 `section.interGroupSpacing`，不要用 `edgeSpacing` 做行距） |
 | Tab 自定义卡片 | 200×140、圆角 34、图标 44（52 方框）、标题 31、间距 10、卡片间距 30 |
 | 账号管理 | 面板 1100×600、圆角 34；卡片 300×320、间距 30、左内边距 60；头像 160、缩放 1.06 |
-| 视频详情 | 播放按钮宽 240、其余 200；UP 行玻璃高 80、头像 64；推荐/合集用 Feed cell（cardWidth 360） |
+| 视频详情 | 播放胶囊 240 带文字；点赞/投币/收藏/不喜欢 88 正圆纯图标（不显示数量）；UP 行玻璃高 80、头像 64、左右留白 16、1pt 白 0.18 描边，聚焦时按胶囊宽度动态加大与关注按钮的间距；粉丝数整数不留小数（`150.0万` → `150万`）；元信息一行 `播放量 · 时长 · 日期`（`.App.body`、`titleColor`、无图标、无 BV 号）；推荐/合集用 Feed cell（cardWidth 360）；回复页继承详情页封面原图 + 同款 regular 毛玻璃（背景与列表一起出现） |
 | 视频选集 | 选集卡 300×150、范围按钮 200×90；`BLTextOnlyCollectionViewCell` 玻璃底，圆角 `min(34, 高度×0.3)`；聚焦白 0.95 + 黑字、缩放 1.1；文字 `.App.rowTitle` 居中两行 |
 | FollowUps | UpCell 玻璃圆角 25、聚焦白 0.95、名字 Marquee |
-| 刷新指示器 | 右下角 64pt 玻璃圆点（`BLLoadingIndicator` / `blSetLoading`） |
+| 刷新指示器 | 右下角 88pt 玻璃圆点，圆弧 44、线宽 5（`BLLoadingIndicator` / `blSetLoading`） |
 
 ---
 
@@ -239,6 +239,30 @@ struct TabBarPagePlacement: Codable, Hashable {
 - 注意 `makeGlassView` 会关掉交互，`titleLabel` 和白色高光都加在 `effectView.contentView` 里，cell 本身负责焦点。
 - 验证：`BL_DEBUG_PAGE=videoDetail` + 临时焦点钩子截图确认两种状态（未聚焦深色玻璃白字 / 聚焦白底黑字），之后钩子已删除，`rg "BL_DEBUG"` 无残留，正常启动无回归。
 
+### 5.9 详情页操作栏 / UP 行 / 回复页 / 刷新指示 / Feed 边框（2026-10-30）
+
+- **操作栏**：播放保留 240 宽胶囊和「播放 / 继续播放」文字；点赞、投币、收藏、不喜欢改为 88×88 正圆玻璃按钮，只显示图标，不再显示数量。状态仍由 `onImage` 填充图标表达，四个按钮补了 `accessibilityLabel`。原来的 `likeButton.title? ± 1` 等计数更新一并删除。
+- **UP 行遮挡**：UP 胶囊聚焦时放大 1.1，左右各多出 5% 宽度，会盖住右侧 16pt 外的关注按钮。`viewDidLayoutSubviews` 里按 `upButton.bounds.width` 动态设置 `upRowView.setCustomSpacing(ceil(width * 0.05) + 10, after: upButton)`，名字越长间距越大。
+- **UP 胶囊内边距**：`BLCustomTextButton` 把原来的 `avatarPadding = 8` 拆成 `avatarLeadingPadding = 16`、`avatarVerticalPadding = 8`、`avatarTrailingPadding = 16`，头像左缘和文字右缘统一 16，胶囊总宽不变（原来 8 + 64 + 16 + 文字 + 24 = 现在 16 + 64 + 16 + 文字 + 16）。
+- **回复页背景**：`ReplyDetailViewController(reply:backgroundImage:)` 接收详情页的封面图，按详情页同款「`backgroundImageView` + `UIBlurEffect(style: .regular)`」铺底，scrollView 放进 `effectContainerView.contentView`；二级回复页继续把同一张图传下去。没有封面时仍保持纯黑。
+- **刷新指示**：`BLLoadingIndicator` 从 64 加大到 88（圆弧 32→44、线宽 3.5→5），电视上更明显。
+- **Feed 焦点边框**：`FeedCollectionViewCell` 聚焦白边 4pt → 6pt。
+- 验证：详情页截图确认操作栏纯图标、UP 胶囊左右留白、白色聚焦胶囊与关注按钮不再重叠；回复页截图确认磨砂背景；刷新指示器截图确认 88pt。调试钩子全部删除，`rg "BL_DEBUG|blDebug"` 无残留，正常启动无回归。
+
+### 5.10 详情页元信息精简 / 回复页背景转场（2026-10-30）
+
+- **元信息行**：参考 Infuse 8，把原来「播放图标 + 播放量 / 时钟 + 时长 / 日期 / BV 号」四个 `MetaItemView` 合成一行弱化文字：`4583.5万播放 · 40:12 · 2011-11-09`。无图标；BV 号不再展示；`MetaItemView` 类删除。UP 行到元信息行的间距收到 16，元信息到简介 10。（字体/颜色在 5.11 定为 `.App.body` + `titleColor`。）
+- **回复页背景转场**（初版）：`ReplyDetailViewController` 的封面 `backgroundImageView.alpha` 初始为 0，`viewDidAppear` 后再用 0.25s 淡入。抽帧确认没有未磨砂原图帧，但转场序列变成「黑 → 列表 → 背景」，5.11 重新调整了转场（最终保留 `UIVisualEffectView`）。
+- **UP 胶囊内边距**：第 5.9 节的 16/16 已经符合这次给的设计稿（头像左缘 = 名字右缘），本轮无需再改。
+
+### 5.11 UP 胶囊描边 / 粉丝数 / 回复页静态磨砂转场 / 元信息颜色（2026-10-30）
+
+- **UP 胶囊弧度**：用 PIL 量过胶囊每行左右边缘，轮廓本身左右对称，视觉上的「圆角不一致」来自 Liquid Glass 偏左上的方向性高光——深色背景上右端圆角发虚。`BLCustomTextButton` 加了一层 `rimView`（`edges == effectView`、1pt 白 0.18、continuous 圆角，`layoutSubviews` 里同步 `effectView.layer.cornerRadius`），只在该按钮有头像时显示。
+- **粉丝数**：`numberString()` 去掉空格后再 `\.0(?=[万亿])` 正则，`150.0万粉丝` → `150万粉丝`；`6.2万` 这类非整数小数保留。
+- **回复页转场**：中间试过用 Core Image 预磨砂的静态图代替毛玻璃，虽然转场干净，但和详情页的 regular 材质观感差距明显，已回退。最终方案：回复页保持和详情页完全相同的「封面原图 + `UIVisualEffectView(effect: UIBlurEffect(style: .regular))`」，scrollView 放进 `blurView.contentView`；列表不淡入，背景和内容随 modal 一起出现。0.05s 抽帧：modal 第一帧磨砂背景和列表就在，没有未磨砂原图帧，也没有黑场。
+- **元信息行颜色**：改成和粉丝数一致的 `titleColor`（`UIColor(named:)`）；字体维持 `.App.body`。
+- 验证：详情页截图确认胶囊描边、`6.2万粉丝` 与元信息同色；回复页抽帧确认「磨砂背景 → 列表」；调试钩子删除，`rg "BL_DEBUG|blDebug"` 无结果，正常启动无回归。
+
 ---
 
 ## 6. 更早的 UI 工作（按记忆归档）
@@ -267,6 +291,7 @@ struct TabBarPagePlacement: Codable, Hashable {
 9. **侧栏/面板内的 collection view**：`contentInsetsReference` 和 `contentInsetAdjustmentBehavior` 会额外加安全区，记得关掉。
 10. **modal 期间刷新 tab bar**：`setPlacements` 会触发 `reloadTabs`，可能在弹窗还开着时重建整条 tab；提交放在 `viewWillDisappear`。
 11. **本地 `rm` 是交互式 alias**：脚本里用 `command rm -f`。
+12. **模拟器程序化聚焦 `BLCustomTextButton` 不触发焦点外观**：`preferredFocusedView` / `UIFocusSystem.requestFocusUpdate(to:)` 指向 UP 按钮时，`isFocused` 会变成 true，但 `didUpdateFocus` 不执行，白色胶囊不出现（`BLCustomButton` 正常）。验证 UP 行聚焦态时不要据此判断代码坏了；临时直接设置 `selectedWhiteView` 和 1.1 缩放来截图即可。
 
 ---
 

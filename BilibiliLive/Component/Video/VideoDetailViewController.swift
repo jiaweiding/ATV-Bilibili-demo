@@ -23,33 +23,6 @@ private struct PageRange {
 }
 
 /// 元信息行里的一项：图标 + 文字，两者一起居中
-private class MetaItemView: UIStackView {
-    let label = UILabel()
-
-    init(icon: String?) {
-        super.init(frame: .zero)
-        axis = .horizontal
-        alignment = .center
-        spacing = 10
-        if let icon {
-            let imageView = UIImageView(image: UIImage(systemName: icon, withConfiguration: UIImage.SymbolConfiguration(pointSize: 27, weight: .medium)))
-            imageView.tintColor = UIColor(named: "titleColor")
-            imageView.contentMode = .scaleAspectFit
-            imageView.setContentHuggingPriority(.required, for: .horizontal)
-            imageView.setContentCompressionResistancePriority(.required, for: .horizontal)
-            addArrangedSubview(imageView)
-        }
-        label.font = .App.body
-        label.textColor = UIColor(named: "titleColor")
-        addArrangedSubview(label)
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-}
-
 class VideoDetailViewController: UIViewController {
     /// 合集 / 推荐视频一行里每张卡片多宽
     private static let rowCardWidth: CGFloat = 360
@@ -68,12 +41,9 @@ class VideoDetailViewController: UIViewController {
     private let followButton = BLCustomButton()
     private let followersLabel = UILabel()
     private let noteView = NoteDetailView()
-    private let playCountItem = MetaItemView(icon: "play.square")
-    private let durationItem = MetaItemView(icon: "clock")
-    private let uploadTimeItem = MetaItemView(icon: nil)
-    private let bvidItem = MetaItemView(icon: nil)
+    /// 播放量 · 时长 · 日期，合成一行弱化的副信息（BV 号不再展示）
+    private let metaLabel = UILabel()
     private let upRowView = UIStackView()
-    private let metaRowView = UIStackView()
 
     // 操作按钮
     private let actionRowView = UIView()
@@ -166,6 +136,22 @@ class VideoDetailViewController: UIViewController {
         return playButton
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateUpRowSpacing()
+    }
+
+    /// UP 胶囊聚焦时放大 1.1，左右各多出 5% 宽度；按当前宽度给关注按钮留出空隙，
+    /// 否则名字较长时白色胶囊会盖到右边的心形按钮上
+    private func updateUpRowSpacing() {
+        let width = upButton.bounds.width
+        guard width > 0 else { return }
+        let spacing = max(16, ceil(width * 0.05) + 10)
+        if abs(upRowView.customSpacing(after: upButton) - spacing) > 0.5 {
+            upRowView.setCustomSpacing(spacing, after: upButton)
+        }
+    }
+
     // MARK: - 布局
 
     private func setupViews() {
@@ -255,12 +241,10 @@ class VideoDetailViewController: UIViewController {
             make.height.equalTo(120)
         }
 
-        metaRowView.axis = .horizontal
-        metaRowView.alignment = .center
-        metaRowView.spacing = 30
-        for item in [playCountItem, durationItem, uploadTimeItem, bvidItem] {
-            metaRowView.addArrangedSubview(item)
-        }
+        metaLabel.font = .App.body
+        metaLabel.textColor = UIColor(named: "titleColor")
+        metaLabel.numberOfLines = 1
+        metaLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         noteView.onPrimaryAction = {
             [weak self] note in
@@ -271,11 +255,12 @@ class VideoDetailViewController: UIViewController {
             make.width.equalTo(880)
         }
 
-        let leftColumnView = UIStackView(arrangedSubviews: [upRowView, metaRowView, noteView])
+        let leftColumnView = UIStackView(arrangedSubviews: [upRowView, metaLabel, noteView])
         leftColumnView.axis = .vertical
         leftColumnView.alignment = .leading
         leftColumnView.spacing = 24
-        leftColumnView.setCustomSpacing(10, after: metaRowView)
+        leftColumnView.setCustomSpacing(16, after: upRowView)
+        leftColumnView.setCustomSpacing(10, after: metaLabel)
         headerView.addSubview(leftColumnView)
         leftColumnView.snp.makeConstraints { make in
             make.top.equalTo(titleLabel.snp.bottom).offset(20)
@@ -284,7 +269,8 @@ class VideoDetailViewController: UIViewController {
         }
     }
 
-    /// 操作按钮：五个按钮各自是一座 Liquid Glass 胶囊，图标和播放量/点赞数并排放在胶囊里
+    /// 操作按钮：播放保留文字和宽度；点赞/投币/收藏/不喜欢只留图标，做成四颗圆形玻璃按钮。
+    /// 数量不是主要信息，状态用填充图标表达，整体更接近 Apple TV 的次级操作栏。
     private func setupActionRow() {
         for button in [playButton, likeButton, coinButton, favButton, dislikeButton] {
             button.contentLayout = .horizontal
@@ -297,16 +283,19 @@ class VideoDetailViewController: UIViewController {
 
         likeButton.image = UIImage(systemName: "hand.thumbsup")
         likeButton.onImage = UIImage(systemName: "hand.thumbsup.fill")
+        likeButton.accessibilityLabel = "点赞"
         likeButton.addTarget(self, action: #selector(actionLike(_:)), for: .primaryActionTriggered)
         coinButton.image = UIImage(systemName: "bitcoinsign.circle")
         coinButton.onImage = UIImage(systemName: "bitcoinsign.circle.fill")
+        coinButton.accessibilityLabel = "投币"
         coinButton.addTarget(self, action: #selector(actionCoin(_:)), for: .primaryActionTriggered)
         favButton.image = UIImage(systemName: "star")
         favButton.onImage = UIImage(systemName: "star.fill")
+        favButton.accessibilityLabel = "收藏"
         favButton.addTarget(self, action: #selector(actionFavorite(_:)), for: .primaryActionTriggered)
         dislikeButton.image = UIImage(systemName: "hand.thumbsdown")
         dislikeButton.onImage = UIImage(systemName: "hand.thumbsdown.fill")
-        dislikeButton.title = "不喜欢"
+        dislikeButton.accessibilityLabel = "不喜欢"
         dislikeButton.addTarget(self, action: #selector(actionDislike(_:)), for: .primaryActionTriggered)
 
         let buttonsStackView = UIStackView(arrangedSubviews: [playButton, likeButton, coinButton, favButton, dislikeButton])
@@ -318,7 +307,7 @@ class VideoDetailViewController: UIViewController {
         }
         for button in [likeButton, coinButton, favButton, dislikeButton] {
             button.snp.makeConstraints { make in
-                make.width.equalTo(200)
+                make.width.equalTo(88)
             }
         }
 
@@ -539,7 +528,7 @@ class VideoDetailViewController: UIViewController {
             let row = ReplyRowView()
             row.config(reply: reply)
             row.onPrimaryAction = { [weak self] _ in
-                self?.present(ReplyDetailViewController(reply: reply), animated: true)
+                self?.present(ReplyDetailViewController(reply: reply, backgroundImage: self?.backgroundImageView.image), animated: true)
             }
             repliesStackView.addArrangedSubview(row)
         }
@@ -679,15 +668,14 @@ class VideoDetailViewController: UIViewController {
     }
 
     private func update(with data: VideoDetail) {
-        playCountItem.label.text = data.View.stat.view.numberString()
-        followersLabel.text = (data.Card.follower ?? 0).numberString() + "粉丝"
-        uploadTimeItem.label.text = data.View.date
-        bvidItem.label.text = data.View.bvid
-        coinButton.title = data.View.stat.coin.numberString()
-        favButton.title = data.View.stat.favorite.numberString()
-        likeButton.title = data.View.stat.like.numberString()
-
-        durationItem.label.text = data.View.durationString
+        // 150.0 万 → 150万：整数不留小数点
+        let followerText = (data.Card.follower ?? 0).numberString()
+            .replacingOccurrences(of: " ", with: "")
+            .replacingOccurrences(of: #"\.0(?=[万亿])"#, with: "", options: .regularExpression)
+        followersLabel.text = followerText + "粉丝"
+        // 参考 Infuse 的单行副信息：播放量 · 时长 · 日期，去掉图标和 BV 号
+        let viewCount = data.View.stat.view.numberString().replacingOccurrences(of: " ", with: "")
+        metaLabel.text = "\(viewCount)播放 · \(data.View.durationString) · \(data.View.date ?? "-")"
         titleLabel.text = data.title
         upButton.title = data.ownerName
         followButton.isOn = data.Card.following
@@ -791,11 +779,6 @@ class VideoDetailViewController: UIViewController {
 
     @IBAction func actionLike(_ sender: Any) {
         Task {
-            if likeButton.isOn {
-                likeButton.title? -= 1
-            } else {
-                likeButton.title? += 1
-            }
             likeButton.isOn.toggle()
             let success = await WebRequest.requestLike(aid: aid, like: likeButton.isOn)
             if !success {
@@ -813,22 +796,13 @@ class VideoDetailViewController: UIViewController {
         let aid = aid
         alert.addAction(UIAlertAction(title: "1", style: .default) { [weak self] _ in
             guard let self else { return }
-            self.coinButton.title? += 1
-            if !self.likeButton.isOn {
-                self.likeButton.title? += 1
-                self.likeButton.isOn = true
-            }
+            self.likeButton.isOn = true
             self.didSentCoins += 1
             WebRequest.requestCoin(aid: aid, num: 1)
         })
         if didSentCoins == 0 {
             alert.addAction(UIAlertAction(title: "2", style: .default) { [weak self] _ in
                 guard let self else { return }
-                self.coinButton.title? += 2
-                if !self.likeButton.isOn {
-                    self.likeButton.title? += 1
-                    self.likeButton.isOn = true
-                }
                 self.likeButton.isOn = true
                 self.didSentCoins += 2
                 WebRequest.requestCoin(aid: aid, num: 2)
@@ -844,7 +818,6 @@ class VideoDetailViewController: UIViewController {
                 return
             }
             if favButton.isOn {
-                favButton.title? -= 1
                 favButton.isOn = false
                 WebRequest.removeFavorite(aid: aid, mid: favList.map { $0.id })
                 return
@@ -853,7 +826,6 @@ class VideoDetailViewController: UIViewController {
             let aid = aid
             for fav in favList {
                 alert.addAction(UIAlertAction(title: fav.title, style: .default) { [weak self] _ in
-                    self?.favButton.title? += 1
                     self?.favButton.isOn = true
                     WebRequest.requestFavorite(aid: aid, mid: fav.id)
                 })

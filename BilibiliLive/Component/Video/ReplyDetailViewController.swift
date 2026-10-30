@@ -9,6 +9,9 @@ import UIKit
 
 /// 点评论进来的二级页：上面是被回复的那条评论（完整展示），下面是它的回复列表
 class ReplyDetailViewController: UIViewController {
+    private let backgroundImageView = UIImageView()
+    /// 和详情页同一套 regular 材质，两页转场时颜色、亮度保持一致
+    private let blurView = UIVisualEffectView(effect: UIBlurEffect(style: .regular))
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     private let titleLabel = UILabel()
@@ -18,9 +21,12 @@ class ReplyDetailViewController: UIViewController {
     private let repliesStackView = UIStackView()
 
     private let reply: Replys.Reply
+    /// 详情页的封面原图，回复页自己套同款毛玻璃，二级页和详情页背景保持连续
+    private let backgroundImage: UIImage?
 
-    init(reply: Replys.Reply) {
+    init(reply: Replys.Reply, backgroundImage: UIImage? = nil) {
         self.reply = reply
+        self.backgroundImage = backgroundImage
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -47,7 +53,27 @@ class ReplyDetailViewController: UIViewController {
     private func setUpViews() {
         view.backgroundColor = .black
 
-        view.addSubview(scrollView)
+        // 和详情页同一套背景：封面原图 + regular 毛玻璃；没有封面时保持纯黑
+        let scrollContainer: UIView
+        if let backgroundImage {
+            backgroundImageView.image = backgroundImage
+            backgroundImageView.contentMode = .scaleAspectFill
+            backgroundImageView.clipsToBounds = true
+            view.addSubview(backgroundImageView)
+            backgroundImageView.snp.makeConstraints { make in
+                make.edges.equalToSuperview()
+            }
+
+            view.addSubview(blurView)
+            blurView.snp.makeConstraints { make in
+                make.edges.equalToSuperview()
+            }
+            scrollContainer = blurView.contentView
+        } else {
+            scrollContainer = view
+        }
+
+        scrollContainer.addSubview(scrollView)
         scrollView.snp.makeConstraints { make in
             make.edges.equalToSuperview()
         }
@@ -150,7 +176,7 @@ class ReplyDetailViewController: UIViewController {
             let row = ReplyRowView()
             row.config(reply: subReply)
             row.onPrimaryAction = { [weak self] _ in
-                self?.present(ReplyDetailViewController(reply: subReply), animated: true)
+                self?.present(ReplyDetailViewController(reply: subReply, backgroundImage: self?.backgroundImage), animated: true)
             }
             repliesStackView.addArrangedSubview(row)
         }

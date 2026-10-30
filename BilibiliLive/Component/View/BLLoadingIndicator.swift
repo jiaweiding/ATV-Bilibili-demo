@@ -9,9 +9,10 @@ import SnapKit
 import UIKit
 
 final class BLLoadingIndicator: UIView {
-    private static let puckSize: CGFloat = 64
-    private static let arcDiameter: CGFloat = 32
-    private static let arcWidth: CGFloat = 3.5
+    // 电视上观看距离远，64 太小不明显；加大到 88，圆弧同步放大
+    private static let puckSize: CGFloat = 88
+    private static let arcDiameter: CGFloat = 44
+    private static let arcWidth: CGFloat = 5
 
     private let puckView = UIVisualEffectView.makeGlassView(cornerRadius: BLLoadingIndicator.puckSize / 2)
     private let trackLayer = CAShapeLayer()

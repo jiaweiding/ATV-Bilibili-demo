@@ -202,7 +202,8 @@ class FeedCollectionViewCell: BLMotionCollectionViewCell {
         super.didUpdateFocus(in: context, with: coordinator)
         titleLabel.textColor = isFocused ? UIColor(named: "titleColor") : UIColor(named: "upTitleColor")
         coordinator.addCoordinatedAnimations {
-            self.imageView.layer.borderWidth = self.isFocused ? 4 : 0
+            // 4pt 在电视上偏细，加到 6pt 让选中态更明确
+            self.imageView.layer.borderWidth = self.isFocused ? 6 : 0
         }
     }
 

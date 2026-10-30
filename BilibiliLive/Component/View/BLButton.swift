@@ -161,14 +161,20 @@ class BLCustomButton: BLButton {
 @IBDesignable
 @MainActor
 class BLCustomTextButton: BLButton {
-    /// 玻璃内的左右/上下留白：有头像时左右对称贴着头像，没有头像时按文字按钮的余量给
-    private static let avatarPadding: CGFloat = 8
+    /// 有头像时：左右留白统一 16（头像左缘 = 文字右缘），上下保持 8，让 64 头像撑出 80 高胶囊
+    private static let avatarLeadingPadding: CGFloat = 16
+    private static let avatarVerticalPadding: CGFloat = 8
+    private static let avatarTrailingPadding: CGFloat = 16
     private static let avatarTextSpacing: CGFloat = 16
+    /// 没有头像的纯文字按钮仍用 24 的左右余量
     private static let textPadding: CGFloat = 24
     private static let textVerticalPadding: CGFloat = 10
 
     private let titleLabel = UILabel()
     private let avatarImageView = UIImageView()
+    /// 玻璃的描边：Liquid Glass 的高光偏向左上，深色背景上右端圆角容易“消失”，
+    /// 补一圈均匀的细描边让胶囊两端的弧度看起来一致
+    private let rimView = UIView()
     var object: Any?
 
     /// 头像直径
@@ -223,27 +229,44 @@ class BLCustomTextButton: BLButton {
         titleLabel.font = titleFont
         titleLabel.textColor = isFocused ? titleSelectedColor : titleColor
         titleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        rimView.isUserInteractionEnabled = false
+        rimView.backgroundColor = .clear
+        rimView.layer.borderWidth = 1
+        rimView.layer.borderColor = UIColor.white.withAlphaComponent(0.18).cgColor
+        rimView.layer.cornerCurve = .continuous
+        addSubview(rimView)
+        rimView.snp.makeConstraints { make in
+            make.edges.equalTo(effectView)
+        }
+
         layoutContent()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        rimView.layer.cornerRadius = effectView.layer.cornerRadius
     }
 
     /// 有头像时由头像撑出胶囊高度，没有头像时由文字撑
     private func layoutContent() {
         let hasAvatar = avatarURL != nil
         avatarImageView.isHidden = !hasAvatar
+        rimView.isHidden = !hasAvatar
         avatarImageView.layer.cornerRadius = avatarSize / 2
         avatarImageView.snp.removeConstraints()
         titleLabel.snp.removeConstraints()
 
         if hasAvatar {
             avatarImageView.snp.makeConstraints { make in
-                make.leading.equalToSuperview().offset(Self.avatarPadding)
-                make.top.equalToSuperview().offset(Self.avatarPadding)
-                make.bottom.equalToSuperview().offset(-Self.avatarPadding)
+                make.leading.equalToSuperview().offset(Self.avatarLeadingPadding)
+                make.top.equalToSuperview().offset(Self.avatarVerticalPadding)
+                make.bottom.equalToSuperview().offset(-Self.avatarVerticalPadding)
                 make.width.height.equalTo(avatarSize)
             }
             titleLabel.snp.makeConstraints { make in
                 make.leading.equalTo(avatarImageView.snp.trailing).offset(Self.avatarTextSpacing)
-                make.trailing.equalToSuperview().offset(-Self.textPadding)
+                make.trailing.equalToSuperview().offset(-Self.avatarTrailingPadding)
                 make.centerY.equalToSuperview()
             }
         } else {
